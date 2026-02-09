@@ -12,26 +12,26 @@ export default function() {
   let video!: HTMLVideoElement;
   let selector!: HTMLSelectElement;
 
+  // Cache AV1 support check (runs once, doesn't block stream setup)
+  const [supportsAv1, setSupportsAv1] = createSignal(false);
+  navigator.mediaCapabilities
+    .decodingInfo({
+      type: 'file',
+      video: {
+        contentType: 'video/mp4; codecs="av01.0.00M.08"',
+        bitrate: 1e7,
+        framerate: 22,
+        height: 720,
+        width: 1280
+      }
+    })
+    .then(result => setSupportsAv1(result.supported));
 
   const savedQ = config.watchMode || { worst: '144p', low: '240', medium: '360p', high: '720p' }[config.quality];
 
-  createEffect(async () => {
+  createEffect(() => {
     if (!playerStore.stream.id) return;
     playerStore.audio.pause();
-
-    const supportsAv1 = await navigator.mediaCapabilities
-      .decodingInfo({
-        type: 'file',
-        video: {
-          contentType: 'video/mp4; codecs="av01.0.00M.08"',
-          bitrate: 1e7,
-          framerate: 22,
-          height: 720,
-          width: 1280
-        }
-      })
-      .then(result => result.supported);
-
 
     const data = playerStore.data as Invidious;
 
@@ -39,16 +39,19 @@ export default function() {
     const hasVp9 = data.adaptiveFormats.find(v => v.type?.includes('vp9'))?.url;
 
     video.currentTime = playerStore.audio.currentTime;
+
+    // Determine which codec to use based on availability AND browser support
+    const useAv1 = hasAv1 && supportsAv1();
+    const useVp9 = !useAv1 && hasVp9;
+    const useAvc = !useAv1 && !useVp9;
+
     setData({
       video: data.adaptiveFormats
         .filter(f => {
           if (!f.type.startsWith('video')) return false;
-          const av1 = hasAv1 && supportsAv1 && f.type?.includes('av01');
-          if (av1) return true;
-          const vp9 = !hasAv1 && f.type?.includes('vp9');
-          if (vp9) return true;
-          const avc = !hasVp9 && f.type?.includes('avc1');
-          if (avc) return true;
+          if (f.type?.includes('av01') && useAv1) return true;
+          if (f.type?.includes('vp9') && useVp9) return true;
+          if (f.type?.includes('avc1') && useAvc) return true;
           return false;
         })
         .map(f => ([f.resolution || f.quality, f.url])),
