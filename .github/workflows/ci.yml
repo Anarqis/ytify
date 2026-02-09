@@ -18,15 +18,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: TypeScript type check
         run: npx tsc --noEmit
 
       - name: Build
         run: npm run build
+
+      - name: Analyze bundle size
+        run: |
+          echo "📦 Bundle Analysis:"
+          du -sh dist/
+          find dist/assets -name "*.js" -exec du -h {} \; | sort -h
+          find dist/assets -name "*.css" -exec du -h {} \; | sort -h
 
       - name: Upload build artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -35,3 +43,4 @@ jobs:
           name: dist-${{ github.sha }}
           path: dist/
           retention-days: 7
+          compression-level: 9

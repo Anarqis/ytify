@@ -59,6 +59,55 @@ export default defineConfig(({ command, mode }) => {
         '@lib': path.resolve(__dirname, './src/lib'),
       },
     },
+    build: {
+      target: 'es2020',
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: isProduction,
+          drop_debugger: isProduction,
+          pure_funcs: isProduction ? ['console.log', 'console.debug'] : [],
+          passes: 2,
+        },
+        mangle: {
+          safari10: true,
+        },
+        format: {
+          comments: false,
+        },
+      },
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            // Vendor chunks
+            if (id.includes('node_modules')) {
+              if (id.includes('solid-js')) {
+                return 'vendor-solid';
+              }
+              if (id.includes('workbox')) {
+                return 'vendor-workbox';
+              }
+              return 'vendor';
+            }
+            // Feature chunks (already lazy loaded, but ensure proper naming)
+            if (id.includes('/src/features/Player')) {
+              return 'feature-player';
+            }
+            if (id.includes('/src/features/Settings')) {
+              return 'feature-settings';
+            }
+            if (id.includes('/src/features/Home')) {
+              return 'feature-home';
+            }
+          },
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+        },
+      },
+      reportCompressedSize: true,
+      chunkSizeWarningLimit: 500,
+    },
     plugins: [
       solidPlugin(),
       injectEruda(command === 'serve'),
