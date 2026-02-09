@@ -4,101 +4,99 @@
 */
 
 :root {
-  /* === PALETTE: Emerald Vinyl Noir === */
+  /* === PALETTE: Emerald Vinyl Noir (Avant-Garde) === */
 
-  /* Base Backgrounds (Deep, not just black) */
-  --bg-base: #050505; /* Almost pure black */
-  --bg-surface: #0a0a0a; /* Slight lift */
-  --bg-elevated: #111111; /* Cards/Modals */
-  --bg-highlight: #1a1a1a; /* Hover states */
+  /* Base Backgrounds (Deep, Cold, Technical) */
+  --bg-base: #000000; /* True Black */
+  --bg-surface: #050505; /* Near Black */
+  --bg-elevated: #0a0a0a; /* Deepest Grey */
+  --bg-highlight: #141414; /* Hover Interaction */
 
-  /* Accents (Vibrant Emerald) */
-  --accent-primary: #00ff9d; /* The "Emerald" Signal */
-  --accent-secondary: #00cc7a;
-  --accent-dim: rgba(0, 255, 157, 0.1);
-  --accent-glow: rgba(0, 255, 157, 0.4);
+  /* Accents (Radioactive Emerald) */
+  --accent-primary: #00ffa3; /* Hyper-Vibrant Emerald */
+  --accent-secondary: #00cc82; /* Muted Emerald */
+  --accent-dim: rgba(0, 255, 163, 0.08); /* Subtle Tech Glow */
+  --accent-glow: rgba(0, 255, 163, 0.6); /* Strong Emit */
+  
+  /* Destructive/Alert */
+  --status-error: #ff2a2a; /* Razor Red */
+  --status-warning: #ffcc00; /* Hazard Yellow */
 
-  /* Text */
+  /* Text (Stark Contrast) */
   --text-primary: #ffffff;
-  --text-secondary: #a1a1a1;
-  --text-tertiary: #525252;
+  --text-secondary: #888888; /* Technical Grey */
+  --text-tertiary: #444444; /* Dark Grey */
   --text-inverse: #000000;
 
-  /* Status */
-  --status-error: #ff3333;
-  --status-success: #00ff9d;
-  --status-warning: #ffbd00;
+  /* === TYPOGRAPHY: Technical & Precise === */
+  --font-display: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
-  /* === TYPOGRAPHY: Geometric & Sharp === */
-  --font-display: "Inter", system-ui, -apple-system, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --text-xs: 0.7rem;   /* 11px */
+  --text-sm: 0.8rem;   /* 13px */
+  --text-base: 0.95rem; /* 15px */
+  --text-lg: 1.2rem;   /* 19px */
+  --text-xl: 1.5rem;   /* 24px */
+  --text-2xl: 2rem;    /* 32px */
+  --text-3xl: 3rem;    /* 48px */
+  --text-4xl: 4rem;    /* 64px */
 
-  --text-xs: 0.75rem; /* 12px */
-  --text-sm: 0.875rem; /* 14px */
-  --text-base: 1rem; /* 16px */
-  --text-lg: 1.125rem; /* 18px */
-  --text-xl: 1.25rem; /* 20px */
-  --text-2xl: 1.5rem; /* 24px */
-  --text-3xl: 2rem; /* 32px */
-  --text-4xl: 2.5rem; /* 40px */
+  /* === SPACING: Tighter, denser === */
+  --space-2xs: 0.125rem; /* 2px */
+  --space-xs: 0.25rem;  /* 4px */
+  --space-sm: 0.5rem;   /* 8px */
+  --space-md: 1rem;     /* 16px */
+  --space-lg: 1.5rem;   /* 24px */
+  --space-xl: 2.5rem;   /* 40px */
+  --space-2xl: 4rem;    /* 64px */
 
-  /* === SPACING: Fluid Scale === */
-  --space-2xs: 0.25rem; /* 4px */
-  --space-xs: 0.5rem; /* 8px */
-  --space-sm: 0.75rem; /* 12px */
-  --space-md: 1rem; /* 16px */
-  --space-lg: 1.5rem; /* 24px */
-  --space-xl: 2rem; /* 32px */
-  --space-2xl: 3rem; /* 48px */
+  /* === LAYOUT: Fixed Variables === */
+  --nav-width: 0px; 
+  --nav-height: 56px; /* Sleeker mobile nav */
+  --player-height: 0px; /* REMOVED MINI PLAYER */
 
-  /* === LAYOUT: Responsive Variables === */
-  --nav-width: 0px; /* Default (Mobile) */
-  --nav-height: 64px; /* Default (Mobile Bottom Bar) */
-  --player-height: 80px; /* Mini Player */
+  /* === BORDERS & EFFECTS: The "Avant-Garde" Shift === */
+  --radius-sm: 0px; /* RAZOR SHARP */
+  --radius-md: 0px; /* NO ROUNDING */
+  --radius-lg: 2px; /* Micro-bevel only */
+  --radius-full: 9999px; /* Pills allowed for specific UI elements only */
 
-  /* === BORDERS & EFFECTS === */
-  --radius-sm: 0px; /* Sharp/Geometric */
-  --radius-md: 4px; /* Slight softening */
-  --radius-lg: 8px; /* Larger elements */
-  --radius-full: 9999px;
+  --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+  --border-highlight: 1px solid rgba(255, 255, 255, 0.2);
+  --border-tech: 1px solid var(--accent-dim);
 
-  --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
-  --border-highlight: 1px solid rgba(255, 255, 255, 0.15);
-
-  /* Glassmorphism (Subtle) */
-  --glass-bg: rgba(5, 5, 5, 0.7);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  --glass-blur: 12px;
+  /* Glassmorphism -> "Tech-morphism" */
+  --glass-bg: rgba(0, 0, 0, 0.85); /* Darker, less blur */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --glass-blur: 8px; /* Sharper background */
 
   /* Z-Index Layers */
   --z-base: 0;
   --z-nav: 100;
-  --z-player: 200;
   --z-modal: 300;
   --z-toast: 400;
   --z-max: 9999;
 
-  /* Transitions */
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* Transitions: Snap & Glitch feel */
+  --ease-tech: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
-  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
-
-  --duration-fast: 200ms;
-  --duration-normal: 400ms;
-  --duration-slow: 600ms;
+  
+  --duration-fast: 150ms; /* Snappier */
+  --duration-normal: 300ms;
 }
 
-/* === BREAKPOINTS (Mobile-First Override) === */
+/* === BREAKPOINTS === */
 @media (min-width: 768px) {
   :root {
-    --nav-height: 0px; /* Side nav takes over */
-    --nav-width: 80px; /* Tablet collapsed nav */
+    --nav-height: 0px; 
+    --nav-width: 72px; /* Slim tablet sidebar */
   }
 }
 
 @media (min-width: 1024px) {
   :root {
-    --nav-width: 260px; /* Desktop full nav */
+    --nav-width: 240px; /* Standard desktop sidebar */
   }
 }
