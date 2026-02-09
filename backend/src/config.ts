@@ -23,6 +23,13 @@ export const config = {
   // Rate limiting
   rateLimitWindowMs: parseInt(Deno.env.get("RATE_LIMIT_WINDOW_MS") || "60000"),
   rateLimitMaxRequests: parseInt(Deno.env.get("RATE_LIMIT_MAX_REQUESTS") || "100"),
+
+  // Redis configuration
+  redisHost: Deno.env.get("REDIS_HOST") || "localhost",
+  redisPort: parseInt(Deno.env.get("REDIS_PORT") || "6379"),
+  redisPassword: Deno.env.get("REDIS_PASSWORD") || undefined,
+  redisDb: parseInt(Deno.env.get("REDIS_DB") || "0"),
+  redisEnabled: Deno.env.get("REDIS_ENABLED") === "true",
 };
 
 // Validate required config

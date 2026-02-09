@@ -57,8 +57,63 @@ const DEFAULT_CONFIG: Required<CacheConfig> = {
   cacheStatuses: [200, 301, 304],
 };
 
-// In-memory cache (use Redis in production)
+// ==========================================================================
+// Cache Storage (Hybrid: Redis + In-Memory Fallback)
+// ==========================================================================
+
+import * as redis from '../services/redis.ts';
+
+// In-memory cache fallback (when Redis is unavailable)
 const memoryCache = new Map<string, CacheEntry>();
+
+/**
+ * Get cache entry from Redis or memory
+ */
+async function getCacheEntry(key: string): Promise<CacheEntry | null> {
+  // Try Redis first
+  const redisData = await redis.get(key);
+  if (redisData) {
+    try {
+      return JSON.parse(redisData) as CacheEntry;
+    } catch (e) {
+      console.error('[Cache] Failed to parse Redis data:', e);
+    }
+  }
+  
+  // Fallback to memory cache
+  return memoryCache.get(key) || null;
+}
+
+/**
+ * Set cache entry in Redis and memory
+ */
+async function setCacheEntry(key: string, entry: CacheEntry): Promise<void> {
+  const serialized = JSON.stringify(entry);
+  
+  // Store in Redis with TTL
+  const redisSuccess = await redis.set(key, serialized, entry.ttl);
+  
+  // Always store in memory as fallback
+  memoryCache.set(key, entry);
+  
+  // Limit memory cache size (LRU eviction)
+  if (memoryCache.size > 1000) {
+    const firstKey = memoryCache.keys().next().value;
+    if (firstKey) memoryCache.delete(firstKey);
+  }
+  
+  if (!redisSuccess) {
+    console.warn('[Cache] Redis unavailable, using memory cache only');
+  }
+}
+
+/**
+ * Delete cache entry from Redis and memory
+ */
+async function deleteCacheEntry(key: string): Promise<void> {
+  await redis.del(key);
+  memoryCache.delete(key);
+}
 
 // ==========================================================================
 // Helper Functions
@@ -134,7 +189,7 @@ export function cacheMiddleware(options: CacheConfig = {}): MiddlewareHandler {
     }
     
     const cacheKey = generateCacheKey(c, config);
-    const cached = memoryCache.get(cacheKey);
+    const cached = await getCacheEntry(cacheKey);
     
     // Check for conditional request (If-None-Match)
     const ifNoneMatch = c.req.header('if-none-match');
@@ -214,7 +269,7 @@ export function cacheMiddleware(options: CacheConfig = {}): MiddlewareHandler {
       ttl,
     };
     
-    memoryCache.set(cacheKey, cacheEntry);
+    await setCacheEntry(cacheKey, cacheEntry);
     
     // Add cache headers to response
     c.header('ETag', etag);
@@ -335,17 +390,23 @@ export function cacheControlMiddleware(
 /**
  * Clear all cache entries
  */
-export function clearCache(): void {
+export async function clearCache(): Promise<void> {
+  await redis.delPattern('ytfy:cache:*');
   memoryCache.clear();
 }
 
 /**
  * Clear cache entries matching a pattern
  */
-export function clearCacheByPattern(pattern: string | RegExp): number {
+export async function clearCacheByPattern(pattern: string | RegExp): Promise<number> {
   let cleared = 0;
-  const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+  const searchPattern = typeof pattern === 'string' ? pattern : pattern.source;
   
+  // Clear from Redis
+  cleared += await redis.delPattern(`ytfy:cache:*${searchPattern}*`);
+  
+  // Clear from memory cache
+  const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
   for (const key of memoryCache.keys()) {
     if (regex.test(key)) {
       memoryCache.delete(key);
@@ -359,26 +420,30 @@ export function clearCacheByPattern(pattern: string | RegExp): number {
 /**
  * Get cache statistics
  */
-export function getCacheStats(): {
+export async function getCacheStats(): Promise<{
   entries: number;
   totalSize: number;
   hitRate: number;
-} {
+  redisStatus: string;
+}> {
   let totalSize = 0;
   
   for (const entry of memoryCache.values()) {
     totalSize += entry.body.length + JSON.stringify(entry.headers).length;
   }
   
+  const redisStats = await redis.getStats();
+  
   return {
     entries: memoryCache.size,
     totalSize,
     hitRate: 0, // Would need tracking to calculate
+    redisStatus: redisStats.status || 'unknown',
   };
 }
 
 /**
- * Prune expired cache entries
+ * Prune expired cache entries (memory only - Redis handles TTL automatically)
  */
 export function pruneCacheExpired(): number {
   let pruned = 0;

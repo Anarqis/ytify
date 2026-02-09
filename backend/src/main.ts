@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { routes } from "./routes/index.ts";
 import { initStorage, isHealthy, closeStorage } from "./services/storage.ts";
+import { initRedis, closeRedis, isRedisConnected } from "./services/redis.ts";
 import { config, validateConfig } from "./config.ts";
 
 const app = new Hono();
@@ -27,9 +28,13 @@ app.use(
 // Health check endpoint
 app.get("/health", (c) => {
   const healthy = isHealthy();
+  const redisHealthy = isRedisConnected();
+  
   return c.json(
     {
-      status: healthy ? "ok" : "unhealthy",
+      status: healthy && redisHealthy ? "ok" : "degraded",
+      storage: healthy ? "ok" : "unhealthy",
+      redis: redisHealthy ? "connected" : "disconnected",
       timestamp: new Date().toISOString(),
     },
     healthy ? 200 : 503
@@ -62,18 +67,26 @@ async function main() {
   // Initialize storage
   await initStorage();
 
-  // Graceful shutdown
-  Deno.addSignalListener("SIGINT", () => {
-    console.log("\nShutting down...");
-    closeStorage();
-    Deno.exit(0);
-  });
+  // Initialize Redis (optional - app will work with in-memory cache if Redis unavailable)
+  if (config.redisEnabled) {
+    console.log("[Redis] Enabled in configuration");
+    await initRedis();
+  } else {
+    console.log("[Redis] Disabled - using in-memory cache only");
+  }
 
-  Deno.addSignalListener("SIGTERM", () => {
+  // Graceful shutdown
+  const shutdown = async () => {
     console.log("\nShutting down...");
     closeStorage();
+    if (config.redisEnabled) {
+      await closeRedis();
+    }
     Deno.exit(0);
-  });
+  };
+
+  Deno.addSignalListener("SIGINT", shutdown);
+  Deno.addSignalListener("SIGTERM", shutdown);
 
   // Start server
   console.log(`Server listening on port ${config.port}`);
