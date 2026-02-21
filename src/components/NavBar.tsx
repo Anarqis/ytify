@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 import { For, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import './NavBar.css';
 import { config, setConfig } from '@lib/utils';
 import { navStore, setNavStore, store, setStore, t } from '@lib/stores';
+=======
+import { navStore, setNavStore, t } from '@lib/stores';
+import { setDrawer } from '@lib/utils';
+>>>>>>> upstream/main
 
 type NavItem = {
     id: 'Hub' | 'Library' | 'Search' | 'Settings',
@@ -14,6 +19,7 @@ type NavItem = {
 
 export default function() {
 
+<<<<<<< HEAD
   function saveHome(name: 'Hub' | 'Library' | 'Search') {
       if (store.homeView === name && navStore.home.state) {
         setNavStore('home', 'state', false);
@@ -72,6 +78,8 @@ export default function() {
     });
   };
 
+=======
+>>>>>>> upstream/main
   return (
     <nav class="main-nav">
       <div class="nav-logo">
@@ -79,6 +87,7 @@ export default function() {
           <span class="nav-logo-text">Ytify</span>
       </div>
 
+<<<<<<< HEAD
       <div class="nav-items">
           <For each={items}>
               {(item) => (
@@ -94,6 +103,40 @@ export default function() {
               )}
           </For>
       </div>
+=======
+      <i
+        aria-label={t('nav_search')}
+        class={'ri-search-2-' + (navStore.search.state ? 'fill' : 'line')
+        }
+        classList={{
+          'on': navStore.search.state
+        }}
+        onclick={() => {
+          const state = !navStore.search.state;
+          setNavStore('search', 'state', state);
+          if (state) {
+            setNavStore('library', 'state', false);
+            navStore.search.ref?.scrollIntoView();
+            setDrawer('lastMainFeature', 'search');
+          }
+        }}
+      ></i>
+
+      <i
+        aria-label={t('nav_library')}
+        class={'ri-archive-stack-' + (navStore.library.state ? 'fill' : 'line')}
+        classList={{ 'on': navStore.library.state }}
+        onclick={() => {
+          const state = !navStore.library.state;
+          setNavStore('library', 'state', state);
+          if (state) {
+            setNavStore('search', 'state', false);
+            navStore.library.ref?.scrollIntoView();
+            setDrawer('lastMainFeature', 'library');
+          }
+        }}
+      ></i>
+>>>>>>> upstream/main
 
       {/* User/Login Button */}
       <Show

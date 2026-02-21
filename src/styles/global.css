@@ -1,7 +1,8 @@
 @import 'open-props/normalize.min.css';
-@import 'remixicon.css';
-@import 'header.css';
+@import 'patterns.css';
+@import 'layout.css';
 @import 'footer.css';
+@import 'remixicon.css';
 @import 'tooltips.css';
 @import 'tokens.css';
 @import 'animations.css';
@@ -56,10 +57,6 @@
   color: var(--selection-text);
 }
 
-
-
-
-
 html {
   height: 100dvh;
   background: var(--trueBg);
@@ -71,6 +68,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+<<<<<<< HEAD
 main {
   color: color-mix(in srgb, oklch(from var(--source) 50% calc(c * var(--chroma)) h), var(--text) 80%);
   display: flex;
@@ -218,13 +216,14 @@ dialog {
 }
 
 
+=======
+>>>>>>> upstream/main
 select {
   font-family: inherit;
   background: none;
   outline: none;
   color: var(--text);
 
-  /* fix white on white issue on dark mode */
   option,
   optgroup {
     cursor: pointer;
@@ -236,70 +235,10 @@ a {
   color: var(--text);
 }
 
-.displayer {
-  white-space: pre;
-  background: var(--onBg);
-  box-shadow: var(--shadow-1);
-  border: var(--border);
-  color: var(--text);
-  border-radius: var(--roundness);
-  width: calc(100dvmin - calc(var(--gap) - var(--border-size-1)) * 2);
-  margin: auto;
-
-  &::backdrop {
-    background-color: #0007;
-  }
-
-  &[open] {
-    display: flex;
-    justify-content: center;
-    flex-direction: column;
-    gap: var(--gap);
-  }
-
-  input {
-    background: none;
-    border-bottom: var(--border);
-    font-weight: var(--font-weight-5);
-    height: var(--size-7);
-    font-size: var(--font-size-2);
-
-    &::placeholder {
-      color: inherit;
-    }
-
-    &:disabled {
-      opacity: 0;
-    }
-  }
-
-  span {
-    width: 100%;
-    display: flex;
-    margin-top: var(--size-2);
-
-    button {
-      background-color: var(--text);
-      color: var(--onBg);
-      border-radius: var(--roundness);
-    }
-
-    button.ri-close-large-line {
-      margin-left: auto;
-    }
-  }
-
-  h4 {
-    margin-bottom: var(--size-4);
-  }
-
-}
-
 i {
-
   cursor: pointer;
-
   position: relative;
+<<<<<<< HEAD
 
 
 }
@@ -338,3 +277,6 @@ i {
   }
 }
 
+=======
+}
+>>>>>>> upstream/main

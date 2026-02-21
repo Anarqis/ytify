@@ -1,15 +1,13 @@
 export const idFromURL = (link: string | null) => link?.match(/(https?:\/\/)?((www\.)?(youtube(-nocookie)?|youtube.googleapis)\.com.*(v\/|v=|vi=|vi\/|e\/|embed\/|user\/.*\/u\/\d+\/)|youtu\.be\/)([_0-9a-z-]+)/i)?.[7];
 
-export const fetchJson = async <T>(
-  url: string,
-  signal?: AbortSignal
-): Promise<T> => fetch(url, { signal })
-  .then(res => {
-    if (!res.ok)
-      throw new Error(`Network response was not ok: ${res.statusText}`);
-    return res.json() as Promise<T>;
-  });
+export const instances = [
+  "https://www.gcx.co.in",
+  "https://ubiquitous-rugelach-b30b3f.netlify.app",
+  "https://super-duper-system.netlify.app",
+  "https://crispy-octo-waddle.netlify.app"
+];
 
+<<<<<<< HEAD
 // Fallback Invidious instances when Uma fetch fails
 const FALLBACK_INSTANCES = [
   'https://inv.nadeko.net',
@@ -57,6 +55,8 @@ export async function fetchUma(): Promise<string[]> {
     return FALLBACK_INSTANCES;
   }
 }
+=======
+>>>>>>> upstream/main
 
 export function convertSStoHHMMSS(seconds: number): string {
   if (seconds < 0) return '';

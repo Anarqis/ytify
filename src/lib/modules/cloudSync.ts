@@ -1,6 +1,7 @@
 import {
   getTracksMap,
   getMeta,
+  metaUpdater,
 } from "@lib/utils/library";
 import { setStore, store, t } from "@lib/stores";
 import { config } from "@lib/utils/config";
@@ -50,15 +51,21 @@ export async function pullFullLibrary(userId: string): Promise<void> {
 export async function pushFullLibrary(userId: string): Promise<void> {
   const snapshot: LibrarySnapshot = {};
 
+<<<<<<< HEAD
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key && key.startsWith('library_')) {
+=======
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('library_')) {
+      try {
+>>>>>>> upstream/main
         const val = localStorage.getItem(key);
         // Use safe parsing
         const parsed = safeJsonParse(val, null);
         if (parsed) snapshot[key.slice(8)] = parsed;
     }
-  }
+  });
 
   const response = await fetch(`/library/${userId}`, {
     method: "PUT",
@@ -283,6 +290,7 @@ export const addDirtyTrack = (id: string) => {
   if (!dirtyTracks.added.includes(id)) dirtyTracks.added.push(id);
   dirtyTracks.deleted = dirtyTracks.deleted.filter((deletedId) => deletedId !== id);
   saveDirtyTracks(dirtyTracks);
+  metaUpdater('tracks');
   scheduleSync();
 };
 
@@ -291,6 +299,7 @@ export const removeDirtyTrack = (id: string) => {
   if (!dirtyTracks.deleted.includes(id)) dirtyTracks.deleted.push(id);
   dirtyTracks.added = dirtyTracks.added.filter((addedId) => addedId !== id);
   saveDirtyTracks(dirtyTracks);
+  metaUpdater('tracks');
   scheduleSync();
 };
 
