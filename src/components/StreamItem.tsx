@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Accessor, Show, createSignal } from "solid-js";
 import "./StreamItem.css";
 import {
@@ -31,6 +32,15 @@ export default function (data: {
   img?: string;
   albumId?: string;
   draggable?: boolean;
+=======
+import { Accessor, Show, createSignal } from 'solid-js';
+import './StreamItem.css';
+import { config, hostResolver, player, removeFromCollection, getCollectionItems, generateImageUrl } from '@utils';
+import { setStore, store, setQueueStore, listStore, navStore, setNavStore, playerStore, setPlayerStore } from '@stores';
+
+export default function(data: YTItem & {
+  draggable?: boolean,
+>>>>>>> upstream/main
   context?: {
     src: Context;
     id: string;
@@ -74,6 +84,7 @@ export default function (data: {
   const isFromArtist = data.context?.id?.startsWith("Artist - ");
   const isMusic = data.author?.endsWith("- Topic");
 
+<<<<<<< HEAD
   // Basic Live detection from views/duration
   const isLive = () =>
     data.duration === "LIVE" ||
@@ -95,6 +106,19 @@ export default function (data: {
   return (
     <a
       class="content-card"
+=======
+
+  const isAlbum = data.context?.id.startsWith('MPREb') || listStore.type === 'album';
+  const isFromArtist = data.context?.id?.startsWith('Artist - ');
+  const isMusic = data.author?.endsWith('- Topic');
+
+  if (config.loadImage && !isAlbum)
+    setImage(generateImageUrl(data.img || data.id, 'mq', data.context?.id === 'favorites' || isFromArtist || ((data.context?.src === 'queue') && isMusic)));
+
+  return (
+    <a
+      class='streamItem card card--interactive'
+>>>>>>> upstream/main
       classList={{
         ravel: config.loadImage && !isAlbum,
         marked: data.mark?.get(data.id),
@@ -149,6 +173,7 @@ export default function (data: {
             if (config.watchMode) navStore.player.ref?.scrollIntoView();
           }
 
+<<<<<<< HEAD
           // Contextual fill (ZigZag queue) logic
           if (
             config.contextualFill &&
@@ -166,8 +191,14 @@ export default function (data: {
             const currentIndex = collectionItems.findIndex(
               (item) => item.id === data.id,
             );
+=======
+          if (config.contextualFill && (data.context?.src === 'collection' || (data.context?.src === 'playlists')) && data.context?.id !== 'history') {
+            const collectionItems = data.context.src === 'collection' ? getCollectionItems(data.context.id) :
+              listStore.list;
+            const currentIndex = collectionItems.findIndex(item => item.id === data.id);
+>>>>>>> upstream/main
             if (currentIndex !== -1) {
-              const zigzagQueue: CollectionItem[] = [];
+              const zigzagQueue: TrackItem[] = [];
               let left = currentIndex - 1;
               let right = currentIndex + 1;
               const len = collectionItems.length;
@@ -186,10 +217,17 @@ export default function (data: {
 
           player(data.id);
 
+<<<<<<< HEAD
           if (data.context?.src === "queue") {
             const indexToRemove = parseInt(data.context.id, 10);
             setQueueStore("list", (list) =>
               list.filter((_, idx) => idx !== indexToRemove),
+=======
+
+          if (data.context?.src === 'queue') {
+            setQueueStore('list', (list) =>
+              list.filter((item) => item.id !== data.id)
+>>>>>>> upstream/main
             );
           }
         }
@@ -215,6 +253,18 @@ export default function (data: {
             </span>
           </Show>
         </Show>
+<<<<<<< HEAD
+=======
+      </span>
+      <div class='metadata'>
+        <p class='title'>{data.title}</p>
+        <div class='avu'>
+          <p class='author truncate'>{data.author?.replace(' - Topic', '')}</p>
+          <Show when={!isAlbum}>
+            <p class='viewsXuploaded truncate'>{data.subtext}</p>
+          </Show>
+        </div>
+>>>>>>> upstream/main
       </div>
 
       <div class="card-info">

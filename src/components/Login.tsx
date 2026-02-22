@@ -1,8 +1,13 @@
 import { createSignal, onMount, Show } from "solid-js";
+<<<<<<< HEAD
 import { setConfig } from "@lib/utils/config";
 import { setStore, t } from "@lib/stores";
 import { signInWithGoogle } from "@lib/modules/googleAuth";
 import './Login.css';
+=======
+import { setConfig } from "@utils";
+import { setStore, t } from "@stores";
+>>>>>>> upstream/main
 
 export default function() {
   const [email, setEmail] = createSignal("");
@@ -75,7 +80,7 @@ export default function() {
         localStorage.setItem('sync_provider', 'email');
         setStore("snackbar", t("login_syncing"));
 
-        import("@lib/modules/cloudSync").then(({ runSync }) => {
+        import("@modules/cloudSync").then(({ runSync }) => {
           runSync(hash)
             .then((result) => {
               setStore("snackbar", result.message);

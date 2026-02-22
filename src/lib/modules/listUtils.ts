@@ -1,6 +1,6 @@
 
-import { listStore, setListStore, setStore, t } from "@lib/stores";
-import { addToCollection, createCollection } from "@lib/utils";
+import { listStore, setListStore, setStore, t } from "@stores";
+import { addToCollection, createCollection } from "@utils";
 
 
 export function importList() {
@@ -17,7 +17,7 @@ export function importList() {
   setStore('snackbar', t('list_imported', listTitle));
 }
 
-export function shareCollection(data: CollectionItem[]) {
+export function shareCollection(data: TrackItem[]) {
   setListStore('isLoading', true);
 
   fetch(location.origin + '/ss', {

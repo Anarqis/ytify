@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 import { store, setStore } from "../stores";
 import { invidiousCircuit } from "@lib/utils/circuitBreaker";
 import { fetchWithRetry } from "@lib/utils/fetch";
+=======
+import { playerStore } from '@stores';
+>>>>>>> upstream/main
 
 export default async function(
   id: string,
@@ -8,6 +12,7 @@ export default async function(
   signal?: AbortSignal
 ): Promise<Invidious | Record<'error' | 'message', string>> {
 
+<<<<<<< HEAD
   const tryFetch = async (instance: string) => {
     const url = `${instance}/api/v1/videos/${id}`;
     const response = await fetchWithRetry(url, { 
@@ -57,4 +62,19 @@ export default async function(
   
   // 3. Last resort: local proxy or error
   return { error: 'All Invidious instances failed', message: 'Could not fetch stream data' };
+=======
+  const fetchData = (proxy?: string) =>
+    fetch(`${proxy || ''}/api/v1/videos/${id}`, { signal })
+      .then(res => res.json() as Promise<Invidious | { error: string }>)
+      .then(data => {
+        if ('adaptiveFormats' in data) return data;
+        else throw new Error(data.error || 'Invalid response');
+      });
+
+  return fetchData(playerStore.proxy)
+    .catch(e => {
+      return prefetch ? e : fetchData()
+        .catch(() => e);
+    });
+>>>>>>> upstream/main
 }
