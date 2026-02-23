@@ -1,8 +1,8 @@
 import { createEffect, createSignal, lazy, onCleanup, onMount, Show } from "solid-js"
 import './Player.css'
 import { MediaDetails } from "@components/MediaPartials";
-import { config, cssVar } from "@lib/utils";
-import { closeFeature, playerStore, setNavStore, setStore, t, updateParam } from "@lib/stores";
+import { config, cssVar } from "@utils";
+import { closeFeature, playerStore, setNavStore, setStore, t, updateParam } from "@stores";
 
 const MediaArtwork = lazy(() => import('../../components/MediaPartials/MediaArtwork'));
 const Lyrics = lazy(() => import('./Lyrics'));
@@ -107,7 +107,11 @@ export default function() {
       </Show>
 
       <header class="topShelf">
-        <p>{t('player_from', getContext())}</p>
+        <p>
+          <Show when={playerStore.context.src === 'queue'} fallback={t('player_from', getContext())}>
+            {getContext()}
+          </Show>
+        </p>
 
         <div class="right-group">
 
