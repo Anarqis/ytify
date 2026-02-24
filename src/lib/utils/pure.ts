@@ -11,12 +11,14 @@ export const fetchJson = async <T>(
   });
 
 // Fallback Invidious instances when Uma fetch fails (verified 2026-02-24)
+// IMPORTANT: These instances must support CORS and be reliable
 const FALLBACK_INSTANCES = [
-  'https://invidious.protokolla.fi',
-  'https://iv.ggtyler.dev',
-  'https://invidious.nerdvpn.de',
-  'https://invidious.privacyredirect.com',
-  'https://inv.nadeko.net'
+  'https://yt.omada.cafe',         // Working 2026-02-24
+  'https://invidious.protokolla.fi', // May require CAPTCHA
+  'https://iv.ggtyler.dev',         // Redirect issues
+  'https://invidious.nerdvpn.de',   // May require auth
+  'https://invidious.privacyredirect.com', // Unstable
+  'https://inv.nadeko.net'          // Endpoint disabled
 ];
 
 // Blacklist of known problematic instances (CORS failures, unreliable, etc.)
@@ -27,6 +29,7 @@ const BLACKLISTED_INSTANCES = [
   'y.com.sb',                    // ERR_SSL_PROTOCOL_ERROR
   'invidious.darkness.services', // CORS error
   'echostreamz.com',             // ERR_FAILED (consistently unreachable)
+  'echostreamz.~',               // Uma encoded version
 ];
 
 export async function fetchUma(): Promise<string[]> {

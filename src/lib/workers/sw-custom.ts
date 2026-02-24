@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute, Route } from 'workbox-routing';
-import { CacheFirst, StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { RangeRequestsPlugin } from 'workbox-range-requests';
@@ -12,7 +12,7 @@ declare const self: ServiceWorkerGlobalScope;
 // =============================================================================
 // 🔑 CACHE NAMES — Versioned for purge-on-deploy
 // =============================================================================
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3'; // Incremented to force cache purge on update
 const CACHE_NAMES = {
   audio: `audio-cache-${CACHE_VERSION}`,
   images: `images-cache-${CACHE_VERSION}`,
@@ -139,7 +139,7 @@ registerRoute(
 );
 
 // =============================================================================
-// 🎯 API RESPONSES — Short-lived cache
+// 🎯 API RESPONSES — Short-lived cache, prefer fresh data
 // =============================================================================
 const apiRoute = new Route(
   ({ url }) => {
@@ -147,13 +147,17 @@ const apiRoute = new Route(
            url.hostname.includes('invidious') ||
            url.pathname.includes('/api/v1/videos/');
   },
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: CACHE_NAMES.api,
+    networkTimeoutSeconds: 5, // Fallback to cache after 5s
     plugins: [
-      new CacheableResponsePlugin({ statuses: [200] }),
+      new CacheableResponsePlugin({ 
+        statuses: [200],
+        // Don't cache error responses or responses with error in body
+      }),
       new ExpirationPlugin({
         maxEntries: 200,
-        maxAgeSeconds: 60 * 60,
+        maxAgeSeconds: 30 * 60, // 30 minutes - reduced for fresher data
       }),
     ],
   })
