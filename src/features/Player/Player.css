@@ -203,10 +203,21 @@
     padding: 4px 0;
 
     p {
+<<<<<<< HEAD
       font-size: var(--font-size-xs);
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
       font-weight: 500;
+=======
+      font-size: var(--font-size-0);
+      letter-spacing: var(--font-letterspacing-2);
+      font-weight: var(--font-weight-7);
+      opacity: 0.8;
+    }
+
+    #fullDuration {
+      text-align: right;
+>>>>>>> upstream/main
     }
   }
 }
@@ -267,7 +278,14 @@
     font-size: 32px;
   }
 
+  button {
+    opacity: 0.9;
+    font-size: var(--font-size-4) !important;
+    font-weight: var(--font-weight-1) !important;
+  }
+
   #playButton {
+<<<<<<< HEAD
     width: 72px;
     height: 72px;
     display: flex;
@@ -289,6 +307,9 @@
     &:active {
       transform: scale(0.95);
     }
+=======
+    transform: scale(1.5);
+>>>>>>> upstream/main
   }
 }
 
@@ -301,6 +322,7 @@
   padding: 0 var(--space-sm);
 
   i {
+<<<<<<< HEAD
     font-size: var(--font-size-md) !important;
     padding: var(--space-sm);
     border-radius: var(--radius-md);
@@ -314,6 +336,48 @@
     &.on {
       color: var(--accent-primary);
       background: oklch(from var(--accent-primary) l c h / 15%);
+=======
+    font-size: var(--font-size-2) !important;
+    padding: 0 var(--size-2);
+    border-radius: var(--roundness);
+    opacity: 0.7;
+    font-weight: var(--font-weight-6);
+  }
+
+
+  select {
+    background: none;
+    width: calc(var(--size-8) + var(--size-2));
+    padding: 0;
+    margin: 0;
+    appearance: none;
+    opacity: 0.5;
+    font-size: var(--font-size-0);
+    letter-spacing: var(--font-letterspacing-2);
+    font-weight: var(--font-weight-6);
+  }
+
+  #volumeChanger {
+    text-align: right;
+  }
+}
+
+.lyrics {
+  aspect-ratio: 1;
+  background-color: var(--onBg);
+  border-radius: var(--roundness);
+  padding: 0 var(--size-3);
+  overflow: scroll;
+
+  p {
+    margin: var(--size-5) 0;
+    font-size: var(--font-size-1);
+    opacity: 0.7;
+
+    &.active {
+      font-weight: var(--font-weight-6);
+      opacity: 1;
+>>>>>>> upstream/main
     }
   }
 }

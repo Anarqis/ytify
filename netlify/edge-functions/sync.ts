@@ -1,19 +1,38 @@
 import { getStore } from "@netlify/blobs";
 import type { Config, Context } from "@netlify/edge-functions";
 
-// --- Type Definitions ---
-interface LibrarySnapshot {
-  [key: string]: any; // Keys are 'meta', 'tracks', 'favorites' (no prefix)
+// --- Type Definitions (Mirrored from global.d.ts) ---
+
+interface TrackItem {
+  id: string;
+  title: string;
+  duration: string;
+  author: string;
+  authorId: string;
+  modified?: number;
 }
-interface Meta { [key: string]: number }
-interface Track { [key: string]: any }
-interface TrackMap { [id: string]: Track }
+
+type Collection = { [index: string]: TrackItem };
+
+interface Meta {
+  version: number;
+  tracks: number;
+  [index: string]: number;
+}
+
+type CollectionData = string[] | any[]; // Explicitly typed in client, relaxed for generic merge here
+
+interface LibrarySnapshot {
+  meta: Meta;
+  tracks: Collection;
+  [key: string]: Collection | Meta | CollectionData | number | string | undefined;
+}
 
 interface DeltaPayload {
-  meta: Meta;
-  addedOrUpdatedTracks: TrackMap;
+  meta: Partial<Meta>;
+  addedOrUpdatedTracks: Collection;
   deletedTrackIds: string[];
-  updatedCollections: { [collectionName: string]: any };
+  updatedCollections: { [collectionName: string]: CollectionData };
   deletedCollectionNames: string[];
 }
 
@@ -35,7 +54,7 @@ export default async (req: Request, context: Context): Promise<Response> => {
       }
 
       const snapshot = libraryBlob.data as LibrarySnapshot;
-      const meta = snapshot["meta"] || { version: 4, tracks: 0 };
+      const meta = snapshot.meta || { version: 5, tracks: 0 };
 
       return new Response(JSON.stringify(meta), {
         status: 200,
@@ -53,7 +72,7 @@ export default async (req: Request, context: Context): Promise<Response> => {
   // --- POST: Smart Pull (Delta Sync) ---
   if (req.method === "POST") {
     try {
-      const { meta: clientMeta } = await req.json();
+      const { meta: clientMeta } = await req.json() as { meta: Meta };
       const libraryBlob = await libraryStore.getWithMetadata(userIdHash, { type: "json" });
 
       if (!libraryBlob || !libraryBlob.data) {
@@ -61,10 +80,10 @@ export default async (req: Request, context: Context): Promise<Response> => {
       }
 
       const snapshot = libraryBlob.data as LibrarySnapshot;
-      const serverMeta = snapshot["meta"] || { version: 4, tracks: 0 };
+      const serverMeta = snapshot.meta || { version: 5, tracks: 0 };
       
       const delta: DeltaPayload = {
-        meta: serverMeta, // Always send latest meta
+        meta: {}, // Start with empty meta for surgical delta
         addedOrUpdatedTracks: {},
         deletedTrackIds: [],
         updatedCollections: {},
@@ -74,34 +93,40 @@ export default async (req: Request, context: Context): Promise<Response> => {
       let hasChanges = false;
       let isFullTrackSync = false;
 
-      // 1. Compare Tracks
-      // If server tracks are newer, we send ALL tracks (current limitation)
-      // Optimally, we would only send changed tracks, but we don't track per-track timestamps.
-      if ((serverMeta.tracks || 0) > (clientMeta.tracks || 0)) {
-         delta.addedOrUpdatedTracks = snapshot["tracks"] || {};
-         hasChanges = true;
-         isFullTrackSync = true;
+      // Only include version if it's newer on server
+      if ((serverMeta.version || 5) > (clientMeta.version || 5)) {
+        delta.meta.version = serverMeta.version;
+        hasChanges = true;
       }
 
-      // 2. Compare Collections
+      if ((serverMeta.tracks || 0) > (clientMeta.tracks || 0)) {
+         const serverTracks = snapshot.tracks || {};
+         const clientTracksTimestamp = clientMeta.tracks || 0;
+         
+         if (clientTracksTimestamp === 0) {
+            delta.addedOrUpdatedTracks = serverTracks;
+            isFullTrackSync = true;
+         } else {
+            const deltaTracks: Collection = {};
+            for (const id in serverTracks) {
+              if ((serverTracks[id].modified || 0) > clientTracksTimestamp) {
+                deltaTracks[id] = serverTracks[id];
+              }
+            }
+            delta.addedOrUpdatedTracks = deltaTracks;
+            isFullTrackSync = false;
+         }
+         delta.meta.tracks = serverMeta.tracks; // Only include if server is ahead
+         hasChanges = true;
+      }
+
       for (const key in serverMeta) {
          if (key === 'version' || key === 'tracks') continue;
-         
          if ((serverMeta[key] || 0) > (clientMeta[key] || 0)) {
-            delta.updatedCollections[key] = snapshot[key];
+            delta.updatedCollections[key] = snapshot[key] as CollectionData;
+            delta.meta[key] = serverMeta[key]; // Only include if server is ahead
             hasChanges = true;
          }
-      }
-
-      // 3. Detect Deletions (Server has it removed, Client still has it)
-      // Client sent us their meta, so we know what they have.
-      for (const key in clientMeta) {
-          if (key === 'version' || key === 'tracks') continue;
-          // If server doesn't have it, it's deleted.
-          if (!serverMeta[key]) {
-             delta.deletedCollectionNames.push(key);
-             hasChanges = true;
-          }
       }
 
       return new Response(JSON.stringify({
@@ -127,25 +152,42 @@ export default async (req: Request, context: Context): Promise<Response> => {
   if (req.method === "PUT") {
     const clientETag = req.headers.get("if-match");
     if (!clientETag) {
-      return new Response("Missing If-Match header for Compare-and-Swap.", { status: 400 });
+      return new Response("Missing If-Match header.", { status: 400 });
     }
 
     try {
-      const currentSnapshot = await libraryStore.get(userIdHash, { type: "json" }) as LibrarySnapshot;
+      let currentSnapshot = await libraryStore.get(userIdHash, { type: "json" }) as LibrarySnapshot | null;
 
       if (!currentSnapshot) {
-         return new Response("Cannot apply delta to a non-existent library.", { status: 404 });
+         return new Response("Library not found.", { status: 404 });
       }
 
-      const delta: DeltaPayload = await req.json();
-      const newSnapshot = applyDelta(currentSnapshot, delta);
+      const delta = await req.json() as DeltaPayload;
+      
+      applyDeltaInPlace(currentSnapshot, delta);
 
-      await libraryStore.setJSON(userIdHash, newSnapshot, { onlyIfMatch: clientETag });
+      await libraryStore.setJSON(userIdHash, currentSnapshot, { 
+        onlyIfMatch: clientETag,
+        metadata: { 
+          contentType: "application/json",
+          lastModified: Date.now().toString()
+        }
+      });
 
       return new Response(null, { status: 204 }); 
     } catch (e) {
       if (String(e).includes("Precondition Failed")) {
-        return new Response("Conflict: Library updated by another device.", { status: 412 });
+        const latestBlob = await libraryStore.getWithMetadata(userIdHash, { type: "json" });
+        const latestSnapshot = latestBlob?.data as LibrarySnapshot | undefined;
+        const serverMeta = latestSnapshot?.meta || { version: 5, tracks: 0 };
+
+        return new Response(JSON.stringify({ serverMeta }), { 
+            status: 412,
+            headers: { 
+                "Content-Type": "application/json",
+                "ETag": latestBlob?.etag || ""
+            }
+        });
       }
       console.error(`Error during PUT /sync for user ${userIdHash}:`, e);
       return new Response("Internal server error during sync.", { status: 500 });
@@ -155,32 +197,47 @@ export default async (req: Request, context: Context): Promise<Response> => {
   return new Response(`Method ${req.method} not allowed.`, { status: 405 });
 };
 
-function applyDelta(current: LibrarySnapshot, delta: DeltaPayload): LibrarySnapshot {
-  const next = { ...current }; 
-
-  // 1. Merge Meta
-  if (!next.meta) next.meta = { version: 4, tracks: 0 };
+function applyDeltaInPlace(next: LibrarySnapshot, delta: DeltaPayload): void {
+  if (!next.meta) next.meta = { version: 5, tracks: 0 };
+  
+  // Merge metadata (timestamps)
   Object.assign(next.meta, delta.meta);
 
-  // 2. Merge Tracks
+  // Preserve highest version
+  const currentVersion = next.meta.version || 5;
+  if (delta.meta.version && delta.meta.version > currentVersion) {
+    next.meta.version = delta.meta.version;
+  } else {
+    next.meta.version = currentVersion;
+  }
+
+  // Merge tracks
   if (!next.tracks) next.tracks = {};
-  Object.assign(next.tracks, delta.addedOrUpdatedTracks);
-  for (const id of delta.deletedTrackIds) {
-    delete next.tracks[id];
+  if (delta.addedOrUpdatedTracks) {
+    Object.assign(next.tracks, delta.addedOrUpdatedTracks);
+  }
+  
+  // Handle deleted tracks
+  if (delta.deletedTrackIds) {
+    for (const id of delta.deletedTrackIds) {
+      delete next.tracks[id];
+    }
   }
 
-  // 3. Merge Collections
-  for (const [name, collectionData] of Object.entries(delta.updatedCollections)) {
-    next[name] = collectionData;
+  // Merge collections
+  if (delta.updatedCollections) {
+    for (const [name, collectionData] of Object.entries(delta.updatedCollections)) {
+      next[name] = collectionData;
+    }
   }
 
-  // 4. Delete Collections
-  for (const name of delta.deletedCollectionNames) {
-    delete next[name];
-    if (next.meta) delete next.meta[name];
+  // Handle deleted collections
+  if (delta.deletedCollectionNames) {
+    for (const name of delta.deletedCollectionNames) {
+      delete next[name];
+      if (next.meta) delete next.meta[name];
+    }
   }
-
-  return next;
 }
 
 export const config: Config = {
