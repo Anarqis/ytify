@@ -9,6 +9,22 @@ import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 declare const self: ServiceWorkerGlobalScope;
 
+// =============================================================================
+// 🔑 CACHE NAMES — Versioned for purge-on-deploy
+// =============================================================================
+const CACHE_VERSION = 'v2';
+const CACHE_NAMES = {
+  audio: `audio-cache-${CACHE_VERSION}`,
+  images: `images-cache-${CACHE_VERSION}`,
+  api: `api-cache-${CACHE_VERSION}`,
+  navigation: `navigation-cache-${CACHE_VERSION}`,
+  // User data caches — NEVER auto-purged
+  library: 'library-cache-v1',
+} as const;
+
+// Caches to PRESERVE across deploys (user data only)
+const PRESERVED_CACHES = new Set<string>([CACHE_NAMES.library]);
+
 // Clean up old caches
 cleanupOutdatedCaches();
 
@@ -16,32 +32,25 @@ cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 // =============================================================================
-// 🎵 AUDIO STREAMING CACHE - Critical for offline playback
+// 🎵 AUDIO STREAMING CACHE
 // =============================================================================
 const audioRoute = new Route(
   ({ url }) => {
-    // Match YouTube audio streams (googlevideo.com)
     if (url.hostname.includes('googlevideo.com')) return true;
-    // Match JioSaavn CDN
     if (url.hostname.includes('saavncdn.com')) return true;
-    // Match SoundCloud CDN
     if (url.hostname.includes('sndcdn.com')) return true;
-    // Match any path containing /audio/
     if (url.pathname.includes('/audio/')) return true;
     return false;
   },
   new CacheFirst({
-    cacheName: 'audio-cache-v1',
+    cacheName: CACHE_NAMES.audio,
     plugins: [
-      // Cache successful responses and partial content (206)
       new CacheableResponsePlugin({ statuses: [200, 206] }),
-      // Critical for audio seeking - handles Range requests
       new RangeRequestsPlugin(),
-      // Limit cache size
       new ExpirationPlugin({
-        maxEntries: 100, // ~100 songs cached
-        maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
-        purgeOnQuotaError: true, // Auto-clear when quota exceeded
+        maxEntries: 100,
+        maxAgeSeconds: 7 * 24 * 60 * 60,
+        purgeOnQuotaError: true,
       }),
     ],
   })
@@ -49,26 +58,23 @@ const audioRoute = new Route(
 registerRoute(audioRoute);
 
 // =============================================================================
-// 🖼️ IMAGE CACHE - Album art, artist photos, thumbnails
+// 🖼️ IMAGE CACHE
 // =============================================================================
 const imageRoute = new Route(
   ({ request, url }) => {
-    // Match image requests
     if (request.destination === 'image') return true;
-    // Match YouTube thumbnails
     if (url.hostname.includes('ytimg.com')) return true;
     if (url.hostname.includes('ggpht.com')) return true;
-    // Match i.scdn.co (Spotify images)
     if (url.hostname.includes('scdn.co')) return true;
     return false;
   },
   new CacheFirst({
-    cacheName: 'images-cache-v1',
+    cacheName: CACHE_NAMES.images,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
       new ExpirationPlugin({
         maxEntries: 500,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        maxAgeSeconds: 30 * 24 * 60 * 60,
       }),
     ],
   })
@@ -76,7 +82,7 @@ const imageRoute = new Route(
 registerRoute(imageRoute);
 
 // =============================================================================
-// 📚 LIBRARY DATA - Playlists, history, favorites (sync endpoints)
+// 📚 LIBRARY DATA — User data, PRESERVED across deploys
 // =============================================================================
 const libraryRoute = new Route(
   ({ url }) => {
@@ -84,21 +90,21 @@ const libraryRoute = new Route(
            url.pathname.startsWith('/sync/');
   },
   new NetworkFirst({
-    cacheName: 'library-cache-v1',
-    networkTimeoutSeconds: 3, // Fallback to cache after 3s
+    cacheName: CACHE_NAMES.library,
+    networkTimeoutSeconds: 3,
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
-      new ExpirationPlugin({ maxAgeSeconds: 24 * 60 * 60 }), // 1 day
+      new ExpirationPlugin({ maxAgeSeconds: 24 * 60 * 60 }),
     ],
   })
 );
 registerRoute(libraryRoute);
 
 // =============================================================================
-// 🔄 BACKGROUND SYNC - For offline library modifications
+// 🔄 BACKGROUND SYNC
 // =============================================================================
 const bgSyncPlugin = new BackgroundSyncPlugin('library-sync-queue', {
-  maxRetentionTime: 24 * 60, // Retry for up to 24 hours
+  maxRetentionTime: 24 * 60,
   onSync: async ({ queue }) => {
     let entry;
     while ((entry = await queue.shiftRequest())) {
@@ -114,15 +120,12 @@ const bgSyncPlugin = new BackgroundSyncPlugin('library-sync-queue', {
   },
 });
 
-// Sync POST/PUT requests that failed offline
 registerRoute(
   ({ url, request }) => {
     return (url.pathname.startsWith('/sync/') || url.pathname.startsWith('/library/')) &&
            (request.method === 'POST' || request.method === 'PUT');
   },
-  new NetworkFirst({
-    plugins: [bgSyncPlugin],
-  }),
+  new NetworkFirst({ plugins: [bgSyncPlugin] }),
   'POST'
 );
 
@@ -131,14 +134,12 @@ registerRoute(
     return (url.pathname.startsWith('/sync/') || url.pathname.startsWith('/library/')) &&
            request.method === 'PUT';
   },
-  new NetworkFirst({
-    plugins: [bgSyncPlugin],
-  }),
+  new NetworkFirst({ plugins: [bgSyncPlugin] }),
   'PUT'
 );
 
 // =============================================================================
-// 🎯 API RESPONSES - Search results, video info (stale-while-revalidate)
+// 🎯 API RESPONSES — Short-lived cache
 // =============================================================================
 const apiRoute = new Route(
   ({ url }) => {
@@ -147,12 +148,12 @@ const apiRoute = new Route(
            url.pathname.includes('/api/v1/videos/');
   },
   new StaleWhileRevalidate({
-    cacheName: 'api-cache-v1',
+    cacheName: CACHE_NAMES.api,
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({
         maxEntries: 200,
-        maxAgeSeconds: 60 * 60, // 1 hour
+        maxAgeSeconds: 60 * 60,
       }),
     ],
   })
@@ -160,57 +161,89 @@ const apiRoute = new Route(
 registerRoute(apiRoute);
 
 // =============================================================================
-// 📄 NAVIGATION - SPA fallback to index.html
+// 📄 NAVIGATION — SPA fallback
 // =============================================================================
 const navigationRoute = new NavigationRoute(
   new NetworkFirst({
-    cacheName: 'navigation-cache-v1',
+    cacheName: CACHE_NAMES.navigation,
     networkTimeoutSeconds: 3,
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
     ],
   }),
-  {
-    // Don't cache OAuth callback pages
-    denylist: [/\/callback\//],
-  }
+  { denylist: [/\/callback\//] }
 );
 registerRoute(navigationRoute);
 
 // =============================================================================
-// 🔔 SERVICE WORKER LIFECYCLE
+// 🔔 SERVICE WORKER LIFECYCLE — Auto-purge stale caches on deploy
 // =============================================================================
-self.addEventListener('install', (_event) => {
-  console.log('[SW] Service Worker installing...');
-  // Skip waiting to activate immediately
+self.addEventListener('install', () => {
+  console.log('[SW] Installing...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker activating...');
-  // Claim all clients immediately
-  event.waitUntil(self.clients.claim());
+  console.log('[SW] Activating — purging stale caches...');
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      const currentCaches: Set<string> = new Set(Object.values(CACHE_NAMES));
+      const deletions = cacheNames
+        .filter(name => !currentCaches.has(name) && !PRESERVED_CACHES.has(name))
+        .map(name => {
+          console.log(`[SW] Purging stale cache: ${name}`);
+          return caches.delete(name);
+        });
+      return Promise.all(deletions);
+    })
+    .then(() => self.clients.claim())
+    .then(() => {
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        return navigator.storage.estimate().then(estimate => {
+          const percentUsed = ((estimate.usage || 0) / (estimate.quota || 1) * 100).toFixed(2);
+          console.log(`[SW] Storage: ${percentUsed}% used (${Math.round((estimate.usage || 0) / 1024 / 1024)}MB)`);
+        });
+      }
+    })
+  );
 });
 
-// Handle messages from the main app
+// =============================================================================
+// 📨 MESSAGE HANDLERS
+// =============================================================================
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  // Clear specific caches on demand
-  if (event.data && event.data.type === 'CLEAR_AUDIO_CACHE') {
-    caches.delete('audio-cache-v1').then(() => {
-      console.log('[SW] Audio cache cleared');
-    });
-  }
-});
+  if (!event.data) return;
 
-// Log cache storage usage
-self.addEventListener('activate', async () => {
-  if ('storage' in navigator && 'estimate' in navigator.storage) {
-    const estimate = await navigator.storage.estimate();
-    const percentUsed = ((estimate.usage || 0) / (estimate.quota || 1) * 100).toFixed(2);
-    console.log(`[SW] Storage: ${percentUsed}% used (${Math.round((estimate.usage || 0) / 1024 / 1024)}MB of ${Math.round((estimate.quota || 0) / 1024 / 1024)}MB)`);
+  switch (event.data.type) {
+    case 'SKIP_WAITING':
+      self.skipWaiting();
+      break;
+
+    case 'CLEAR_AUDIO_CACHE':
+      caches.delete(CACHE_NAMES.audio).then(() => {
+        console.log('[SW] Audio cache cleared');
+      });
+      break;
+
+    case 'PURGE_APP_CACHES':
+      // Purge everything except user library data
+      caches.keys().then(names => {
+        const deletions = names
+          .filter(name => !PRESERVED_CACHES.has(name))
+          .map(name => caches.delete(name));
+        return Promise.all(deletions);
+      }).then(() => {
+        console.log('[SW] All app caches purged (library preserved)');
+        event.ports?.[0]?.postMessage({ success: true });
+      });
+      break;
+
+    case 'GET_CACHE_SIZE':
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        navigator.storage.estimate().then(estimate => {
+          event.ports?.[0]?.postMessage({ size: estimate.usage || 0 });
+        });
+      }
+      break;
   }
 });

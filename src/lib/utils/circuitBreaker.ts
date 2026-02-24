@@ -55,5 +55,4 @@ export class CircuitBreaker {
 }
 
 // Global instances
-export const invidiousCircuit = new CircuitBreaker('invidious', 3, 60000);
 export const jioSaavnCircuit = new CircuitBreaker('jiosaavn', 3, 30000);

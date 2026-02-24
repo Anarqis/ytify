@@ -13,10 +13,10 @@ export const fetchJson = async <T>(
 // Fallback Invidious instances when Uma fetch fails (verified 2026-02-24)
 const FALLBACK_INSTANCES = [
   'https://invidious.protokolla.fi',
-  'https://invidious.snopyta.org',
-  'https://inv.riverside.rocks',
-  'https://inv.bp.projectsegfau.lt',
-  'https://iv.ggtyler.dev'
+  'https://iv.ggtyler.dev',
+  'https://invidious.nerdvpn.de',
+  'https://invidious.privacyredirect.com',
+  'https://inv.nadeko.net'
 ];
 
 // Blacklist of known problematic instances (CORS failures, unreliable, etc.)
