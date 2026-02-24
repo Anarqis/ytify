@@ -96,6 +96,7 @@ export default function() {
     <section
       id="playerSection"
       ref={playerSection}
+      classList={{ active: true }}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
