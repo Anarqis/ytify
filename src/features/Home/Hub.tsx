@@ -1,4 +1,4 @@
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, onMount } from "solid-js";
 import { updateSubfeed, updateGallery } from "@lib/modules/hub";
 import { fetchCollection, getCollection, getTracksMap, drawer, setDrawer, generateImageUrl, getThumbIdFromLink } from "@lib/utils";
 import ListItem from "@components/ListItem";
@@ -20,9 +20,19 @@ export default function () {
     .slice(0, 10)
     .map(id => tracksMap[id])
     .filter(Boolean) as CollectionItem[];
-  
+
   const [isSubfeedLoading, setIsSubfeedLoading] = createSignal(false);
   const [isGalleryLoading, setIsGalleryLoading] = createSignal(false);
+
+  // Auto-fetch subfeed if empty on mount
+  onMount(() => {
+    if (!subfeed() || subfeed()?.length === 0) {
+      handleSubfeedRefresh();
+    }
+    if (!gallery().userArtists?.length && !gallery().relatedArtists?.length && !gallery().relatedPlaylists?.length) {
+      handleGalleryRefresh();
+    }
+  });
 
   const getFrequentlyPlayedTracks = (limit?: number) => {
     const allTracks = Object.values(getTracksMap());
@@ -113,49 +123,64 @@ export default function () {
       </Show>
 
       {/* --- Subfeed Section --- */}
-      <Carousel
-        title={t('hub_subfeed')}
-        items={subfeed() || []}
-        headerContent={
-          <>
-            <i
-              aria-label={t('hub_refresh')}
-              aria-busy={isSubfeedLoading()}
-              classList={{ 'ri-refresh-line': true, 'loading': isSubfeedLoading() }}
-              onclick={handleSubfeedRefresh}
-              style="cursor: pointer; font-size: 1.2rem; color: var(--text-secondary);"
-            ></i>
-            <i
-              aria-label={t('hub_show_all')}
-              class="ri-arrow-right-s-line"
-              onclick={() => {
-                const subfeedItems = drawer.subfeed || [];
-                setListStore({
-                  name: t('hub_subfeed'),
-                  list: subfeedItems as CollectionItem[],
-                });
-                setNavStore('list', 'state', true);
-              }}
-              style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);"
-            ></i>
-          </>
-        }
-        renderItem={(item) => (
-           <div style="min-width: 200px; max-width: 240px;">
-            <StreamItem
-              id={item.id}
-              title={item.title}
-              author={item.author}
-              duration={item.duration}
-              authorId={item.authorId}
-              context={{
-                id: t('hub_subfeed'),
-                src: 'hub'
-              }}
-            />
+      <Show
+        when={subfeed()?.length > 0 || isSubfeedLoading()}
+        fallback={
+          <div style="padding: 40px 20px; text-align: center;">
+            <div style="color: var(--text-secondary); margin-bottom: 20px;">
+              <i class="ri-rss-line" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 10px;">Welcome to Your Hub</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+              Your personalized feed is loading. Start exploring music to build your recommendations!
+            </p>
           </div>
-        )}
-      />
+        }
+      >
+        <Carousel
+          title={t('hub_subfeed')}
+          items={subfeed() || []}
+          headerContent={
+            <>
+              <i
+                aria-label={t('hub_refresh')}
+                aria-busy={isSubfeedLoading()}
+                classList={{ 'ri-refresh-line': true, 'loading': isSubfeedLoading() }}
+                onclick={handleSubfeedRefresh}
+                style="cursor: pointer; font-size: 1.2rem; color: var(--text-secondary);"
+              ></i>
+              <i
+                aria-label={t('hub_show_all')}
+                class="ri-arrow-right-s-line"
+                onclick={() => {
+                  const subfeedItems = drawer.subfeed || [];
+                  setListStore({
+                    name: t('hub_subfeed'),
+                    list: subfeedItems as CollectionItem[],
+                  });
+                  setNavStore('list', 'state', true);
+                }}
+                style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);"
+              ></i>
+            </>
+          }
+          renderItem={(item) => (
+            <div style="min-width: 200px; max-width: 240px;">
+              <StreamItem
+                id={item.id}
+                title={item.title}
+                author={item.author}
+                duration={item.duration}
+                authorId={item.authorId}
+                context={{
+                  id: t('hub_subfeed'),
+                  src: 'hub'
+                }}
+              />
+            </div>
+          )}
+        />
+      </Show>
 
        {/* --- Frequently Played --- */}
       <Show when={getFrequentlyPlayedTracks().length > 0}>

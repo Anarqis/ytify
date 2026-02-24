@@ -66,7 +66,10 @@ export async function player(id?: string, isRetry = false) {
       invidiousData.adaptiveFormats
         .filter(f => f.type.startsWith('audio'))
         .sort((a, b) => (parseInt(a.bitrate) - parseInt(b.bitrate)))
-    ));
+    ))
+    .catch((error) => {
+      console.error('Failed to load audio streams:', error);
+    });
 
 
     if (config.similarContent && !enforceVideo)

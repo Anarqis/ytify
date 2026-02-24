@@ -19,9 +19,18 @@ const FALLBACK_INSTANCES = [
   'https://iv.melmac.space'
 ];
 
+// Blacklist of known problematic instances (CORS failures, unreliable, etc.)
+const BLACKLISTED_INSTANCES = [
+  'inv-veltrix-3.zeabur.app',
+  'inv-veltrix.zeabur.app',
+  'inv-veltrix-2.zeabur.app',
+  'y.com.sb',                    // ERR_SSL_PROTOCOL_ERROR
+  'invidious.darkness.services'  // CORS error
+];
+
 export async function fetchUma(): Promise<string[]> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout (reduced from 10s)
 
   try {
     const res = await fetch('https://raw.githubusercontent.com/n-ce/Uma/main/iv.txt', {
@@ -49,7 +58,11 @@ export async function fetchUma(): Promise<string[]> {
       decompressedString = decompressedString.replace(regex, decodePairs[code]);
     }
 
-    const instances = decompressedString.split(',').map(i => `https://${i}`);
+    const instances = decompressedString.split(',')
+      .map(i => `https://${i}`)
+      .filter(instance => !BLACKLISTED_INSTANCES.some(blocked => instance.includes(blocked)));
+
+    console.log(`✓ Uma: Fetched ${instances.length} instances (filtered out ${BLACKLISTED_INSTANCES.length} blacklisted)`);
     return instances.length > 0 ? instances : FALLBACK_INSTANCES;
   } catch (error) {
     clearTimeout(timeoutId);

@@ -33,7 +33,15 @@
       "Bash(powershell:*)",
       "Bash(tailscale status:*)",
       "Bash(tailscale up:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(start https://music.ml4-lab.com)",
+      "Bash(bash scripts/fix-production.sh:*)",
+      "Bash(echo:*)",
+      "Bash(start https://ytify.ml4-lab.com)",
+      "Bash(bash scripts/deploy-vps.sh:*)",
+      "Bash(bash scripts/deploy-optimized.sh:*)",
+      "Bash(bash:*)",
+      "Bash(diagnostic-complet.bat)"
     ]
   }
 }

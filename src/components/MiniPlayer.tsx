@@ -16,7 +16,7 @@ export default function() {
         setNavStore('player', 'state', true);
     }
     }>
-      <progress value={((playerStore.currentTime / playerStore.fullDuration) || 0).toFixed(3)}></progress>
+      <progress value={(playerStore.currentTime / playerStore.fullDuration) || 0}></progress>
       <Show when={config.loadImage}>
         <MediaArtwork />
       </Show>

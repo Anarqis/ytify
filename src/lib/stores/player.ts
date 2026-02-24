@@ -1,4 +1,4 @@
-import { createRoot } from "solid-js";
+import { createRoot, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 import { addToCollection, config, cssVar, player, themer } from "@lib/utils";
 import { navStore, params, updateParam } from "./navigation";
@@ -95,7 +95,7 @@ export function playPrev() {
 }
 
 createRoot(() => {
-  let historyID: string | undefined = '';
+  let historyID: string | undefined = undefined;
   let historyTimeoutId = 0;
 
   playerStore.audio.volume = playerStore.volume;
@@ -141,6 +141,9 @@ createRoot(() => {
       clearInterval(playableCheckerID);
     }
   }, 500);
+
+  // Cleanup interval to prevent memory leak
+  onCleanup(() => clearInterval(playableCheckerID));
 
   playerStore.audio.onloadstart = () => {
     setPlayerStore('playbackState', 'paused');

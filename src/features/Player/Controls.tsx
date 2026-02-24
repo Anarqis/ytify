@@ -37,7 +37,7 @@ export default function(_: {
           value={playerStore.currentTime}
           max={playerStore.fullDuration}
           ref={slider}
-          onchange={(e) => {
+          oninput={(e) => {
             playerStore.audio.currentTime = parseInt(e.target.value);
           }}
         />
