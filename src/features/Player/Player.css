@@ -1,13 +1,13 @@
-@import './slider.css';
+@import "./slider.css";
 
 /* === PLAYER SECTION - Responsive Wrapper === */
 #playerSection {
   display: flex;
   flex-direction: column;
   position: fixed;
-  z-index: var(--z-player);
+  z-index: var(--z-max, 9999);
   background: var(--bg-base);
-  
+
   /* Defaults (Mobile) */
   inset: 0;
   width: 100%;
@@ -61,7 +61,7 @@
     cursor: pointer;
     border-radius: var(--radius-full);
     transition: background var(--duration-fast) var(--ease-out-quart);
-    
+
     &:hover {
       background: var(--bg-overlay);
     }
@@ -77,11 +77,11 @@
     transform: translateX(0); /* Always visible on desktop if intended */
     border-left: var(--border-subtle);
     box-shadow: var(--shadow-xl);
-    
+
     & div.bg-image {
       border-top-left-radius: 0;
     }
-    
+
     /* If we want it collapsible on desktop, use a class */
     &.collapsed {
       transform: translateX(100%);
@@ -105,9 +105,11 @@
     cursor: pointer;
   }
 
-  i, button, label {
+  i,
+  button,
+  label {
     font-size: var(--font-size-lg);
-    transition: 
+    transition:
       transform var(--duration-fast) var(--ease-spring),
       color var(--duration-fast) var(--ease-out-quart);
   }
@@ -138,19 +140,19 @@
     justify-content: center;
     gap: var(--space-lg);
     padding: var(--space-md);
-    
+
     img {
       margin: 0;
       width: min(40vh, 200px);
     }
-    
+
     .player-controls-container {
       flex: 1;
       max-width: 400px;
     }
   }
 
-  &:has(>div.watcher) {
+  &:has(> div.watcher) {
     margin: auto;
     justify-content: center;
   }
@@ -185,13 +187,13 @@
 
 .slider {
   margin-bottom: var(--space-md);
-  
+
   input {
     width: 100%;
     color: var(--accent-primary);
     height: 6px;
     transition: height var(--duration-fast);
-    
+
     &:hover {
       height: 10px;
     }
@@ -228,11 +230,11 @@
   .right-group {
     display: flex;
     gap: var(--space-sm);
-    
+
     i {
       padding: var(--space-sm);
       border-radius: var(--radius-md);
-      
+
       &:hover {
         background: var(--bg-tertiary);
         color: var(--text-primary);
@@ -248,22 +250,24 @@
   margin: var(--space-md) 0;
   padding: 0 var(--space-sm);
 
-  button, i {
+  button,
+  i {
     padding: var(--space-md);
     border-radius: var(--radius-full);
     color: var(--text-primary);
-    
+
     &:hover {
       background: var(--bg-tertiary);
     }
-    
+
     &:active {
       transform: scale(0.9);
     }
   }
-  
+
   /* Skip Buttons */
-  i.ri-skip-back-fill, i.ri-skip-forward-fill {
+  i.ri-skip-back-fill,
+  i.ri-skip-forward-fill {
     font-size: 32px;
   }
 
@@ -278,10 +282,10 @@
     border-radius: var(--radius-full);
     font-size: 32px;
     box-shadow: var(--shadow-glow);
-    transition: 
+    transition:
       transform var(--duration-fast) var(--ease-spring),
       box-shadow var(--duration-fast) var(--ease-out-quart);
-    
+
     &:hover {
       transform: scale(1.1);
       box-shadow: var(--shadow-glow-intense);
@@ -305,12 +309,12 @@
     padding: var(--space-sm);
     border-radius: var(--radius-md);
     color: var(--text-secondary);
-    
+
     &:hover {
       color: var(--text-primary);
       background: var(--bg-tertiary);
     }
-    
+
     &.on {
       color: var(--accent-primary);
       background: oklch(from var(--accent-primary) l c h / 15%);
@@ -326,35 +330,35 @@
     flex-direction: row;
     padding: var(--tv-safe-area);
   }
-  
+
   #playerSection article {
     flex-direction: row;
     max-width: none;
     align-items: center;
     gap: var(--space-3xl);
-    
+
     img {
       width: 400px;
       margin: 0;
       box-shadow: var(--shadow-xl);
     }
   }
-  
+
   .player-controls-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
-  
+
   .mediaDetails a {
     font-size: 48px;
   }
-  
+
   .mainShelf {
     justify-content: flex-start;
     gap: var(--space-xl);
-    
+
     button:focus-visible {
       outline: var(--tv-focus-ring);
       background: var(--bg-elevated);
@@ -368,15 +372,16 @@
   #playerSection {
     padding: var(--space-sm);
   }
-  
-  .bottomShelf, .topShelf {
+
+  .bottomShelf,
+  .topShelf {
     display: none; /* Hide non-essentials */
   }
-  
+
   .mainShelf {
     justify-content: space-around;
   }
-  
+
   #playButton {
     width: 80px;
     height: 80px;
@@ -399,7 +404,7 @@
     font-size: var(--font-size-lg);
     color: var(--text-muted);
     line-height: var(--line-height-relaxed);
-    transition: 
+    transition:
       color var(--duration-normal) var(--ease-out-quart),
       transform var(--duration-normal) var(--ease-out-expo),
       text-shadow var(--duration-normal) var(--ease-out-quart);
@@ -440,11 +445,11 @@
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    
+
     &:hover {
       background: var(--bg-active);
     }
-    
+
     &:active {
       transform: scale(0.95);
     }
@@ -467,7 +472,7 @@
     padding: var(--space-xl);
     max-width: 480px;
   }
-  
+
   #playerSection article img {
     width: min(60vw, 300px);
   }
@@ -479,19 +484,20 @@
     padding: var(--space-xl);
     max-width: 540px;
   }
-  
+
   #playerSection article img {
     width: min(50vw, 340px);
   }
-  
+
   .mainShelf {
     #playButton {
       width: 80px;
       height: 80px;
       font-size: 36px;
     }
-    
-    i.ri-skip-back-fill, i.ri-skip-forward-fill {
+
+    i.ri-skip-back-fill,
+    i.ri-skip-forward-fill {
       font-size: 36px;
     }
   }
@@ -507,7 +513,7 @@
     min-width: var(--touch-target-min, 44px);
     min-height: var(--touch-target-min, 44px);
   }
-  
+
   .mainShelf #playButton {
     /* Larger play button for touch */
     min-width: 72px;
@@ -529,12 +535,12 @@
   #playerSection {
     padding: var(--space-sm);
   }
-  
+
   #playerSection header {
     padding: var(--space-xs) var(--space-md);
     min-height: 48px;
   }
-  
+
   #playerSection article {
     flex-direction: row;
     align-items: center;
@@ -542,70 +548,72 @@
     padding: var(--space-md);
     gap: var(--space-lg);
   }
-  
+
   #playerSection article img {
     width: min(35vh, 180px);
     margin: 0;
   }
-  
+
   .player-controls-container {
     flex: 1;
     max-width: 500px;
   }
-  
+
   .mediaDetails {
     margin: var(--space-sm) 0;
-    
+
     a {
       font-size: var(--font-size-lg);
       -webkit-line-clamp: 1;
       line-clamp: 1;
     }
-    
+
     p {
       display: none; /* Hide artist in car mode */
     }
   }
-  
+
   .slider {
     margin-bottom: var(--space-sm);
-    
+
     input {
       height: 12px; /* Thicker for touch */
-      
+
       &:hover {
         height: 16px;
       }
     }
   }
-  
+
   .topShelf {
     display: none; /* Hide non-essential controls */
   }
-  
+
   .bottomShelf {
     display: none; /* Hide non-essential controls */
   }
-  
+
   .mainShelf {
     justify-content: center;
     gap: var(--space-xl);
     padding: 0;
-    
-    button, i {
+
+    button,
+    i {
       /* Large touch targets for car safety */
       min-width: var(--touch-target-car, 72px);
       min-height: var(--touch-target-car, 72px);
       padding: var(--space-lg);
     }
-    
+
     #playButton {
       width: 88px;
       height: 88px;
       font-size: 40px;
     }
-    
-    i.ri-skip-back-fill, i.ri-skip-forward-fill {
+
+    i.ri-skip-back-fill,
+    i.ri-skip-forward-fill {
       font-size: 40px;
     }
   }
@@ -617,17 +625,17 @@
     /* Full width layout for wide displays */
     padding: var(--space-md) var(--space-xl);
   }
-  
+
   #playerSection article {
     flex-direction: row;
     max-width: none;
     gap: var(--space-2xl);
   }
-  
+
   #playerSection article img {
     width: min(40vh, 240px);
   }
-  
+
   .mainShelf {
     justify-content: flex-start;
     gap: var(--space-lg);
@@ -639,28 +647,28 @@
   .mediaDetails p {
     font-size: var(--font-size-lg);
   }
-  
+
   .slider input {
     height: 10px;
-    
+
     &:hover {
       height: 14px;
     }
   }
-  
+
   .slider div p {
     font-size: var(--font-size-md);
   }
-  
+
   .bottomShelf i {
     font-size: var(--font-size-lg) !important;
     padding: var(--space-md);
   }
-  
+
   .topShelf .right-group i {
     padding: var(--space-md);
   }
-  
+
   /* All interactive elements need focus states for TV remote */
   .mainShelf button:focus-visible,
   .mainShelf i:focus-visible,
@@ -670,10 +678,10 @@
     background: var(--bg-elevated);
     transform: scale(1.1);
   }
-  
+
   .lyrics {
     padding: var(--space-xl);
-    
+
     p {
       font-size: var(--font-size-xl);
       margin: var(--space-xl) 0;
@@ -765,20 +773,20 @@
   #playerSection {
     transition: none;
   }
-  
+
   #playerSection article img {
     animation: none;
   }
-  
+
   #playerSection article img.playing {
     animation: none;
     --vinyl-state: paused;
   }
-  
+
   .lyrics p {
     transition: none;
   }
-  
+
   .mainShelf button,
   .mainShelf i {
     transition: none;
