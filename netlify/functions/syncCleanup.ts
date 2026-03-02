@@ -1,11 +1,11 @@
 import { getStore } from "@netlify/blobs";
-import type { Config, Handler } from "@netlify/functions";
+import type { Config } from "@netlify/functions";
 
 // Define constants for the retention policy
 const DATA_RETENTION_DAYS = 100;
 const INACTIVE_THRESHOLD_MS = DATA_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
-const handler: Handler = async () => {
+export default async () => {
   console.log("--- Starting Scheduled Data Cleanup ---");
   const now = Date.now();
 
@@ -15,16 +15,20 @@ const handler: Handler = async () => {
   let deletedLibraryCount = 0;
 
   try {
-    const { blobs: libraryBlobs } = await libraryStore.list({ prefix: '' });
-    for (const blob of libraryBlobs) {
-      const blobWithMeta = await libraryStore.getWithMetadata(blob.key);
-      if (!blobWithMeta) continue;
+    for await (const { blobs: libraryBlobs } of libraryStore.list({ paginate: true })) {
+      for (const blob of libraryBlobs) {
+        const blobWithMeta = await libraryStore.getWithMetadata(blob.key);
+        if (!blobWithMeta) continue;
 
-      const lastModifiedTime = (blobWithMeta.metadata?.lastModified as number) || now;
-      if ((now - lastModifiedTime) > INACTIVE_THRESHOLD_MS) {
-        console.log(`Deleting inactive library: ${blob.key}`);
-        await libraryStore.delete(blob.key);
-        deletedLibraryCount++;
+        const lastModifiedStr = blobWithMeta.metadata?.lastModified as string | undefined;
+        const lastModifiedTime = lastModifiedStr ? parseInt(lastModifiedStr) : 0;
+        
+        // Only delete if we have a valid lastModified AND it's older than threshold
+        if (lastModifiedTime && (now - lastModifiedTime) > INACTIVE_THRESHOLD_MS) {
+          console.log(`Deleting inactive library: ${blob.key}`);
+          await libraryStore.delete(blob.key);
+          deletedLibraryCount++;
+        }
       }
     }
   } catch (e) {
@@ -37,24 +41,27 @@ const handler: Handler = async () => {
   let deletedStaticCount = 0;
 
   try {
-    const { blobs: staticBlobs } = await staticStore.list({ prefix: '' });
-    for (const blob of staticBlobs) {
-      // For static content, the key itself is often the timestamp (e.g., "1715623...").
-      // However, we should also check the metadata's lastModified for accuracy.
-      const blobWithMeta = await staticStore.getWithMetadata(blob.key);
-      if (!blobWithMeta) continue;
+    for await (const { blobs: staticBlobs } of staticStore.list({ paginate: true })) {
+      for (const blob of staticBlobs) {
+        // For static content, the key itself is often the timestamp (e.g., "1715623...").
+        // However, we should also check the metadata's lastModified for accuracy.
+        const blobWithMeta = await staticStore.getWithMetadata(blob.key);
+        if (!blobWithMeta) continue;
 
-      // Use metadata lastModified, fallback to parsing key if it looks like a timestamp
-      let lastModifiedTime = blobWithMeta.metadata?.lastModified as number;
-      if (!lastModifiedTime && /^\d+$/.test(blob.key)) {
+        // Use metadata lastModified, fallback to parsing key if it looks like a timestamp
+        const lastModifiedStr = blobWithMeta.metadata?.lastModified as string | undefined;
+        let lastModifiedTime = lastModifiedStr ? parseInt(lastModifiedStr) : 0;
+        
+        if (!lastModifiedTime && /^\d+$/.test(blob.key)) {
           lastModifiedTime = parseInt(blob.key);
-      }
-      lastModifiedTime = lastModifiedTime || now;
+        }
+        lastModifiedTime = lastModifiedTime || now;
 
-      if ((now - lastModifiedTime) > INACTIVE_THRESHOLD_MS) {
-        console.log(`Deleting old static blob: ${blob.key}`);
-        await staticStore.delete(blob.key);
-        deletedStaticCount++;
+        if ((now - lastModifiedTime) > INACTIVE_THRESHOLD_MS) {
+          console.log(`Deleting old static blob: ${blob.key}`);
+          await staticStore.delete(blob.key);
+          deletedStaticCount++;
+        }
       }
     }
   } catch (e) {
@@ -62,11 +69,9 @@ const handler: Handler = async () => {
   }
 
   console.log(`Cleanup complete. Deleted ${deletedLibraryCount} libraries and ${deletedStaticCount} static blobs.`);
-  return { statusCode: 200 };
+  return new Response("OK", { status: 200 });
 };
 
 export const config: Config = {
   schedule: "0 0 * * *", // Runs daily at midnight UTC
 };
-
-export { handler };
