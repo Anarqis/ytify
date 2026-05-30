@@ -51,7 +51,10 @@ export default async (_: Request, context: Context) => {
   };
 
   return new Response(JSON.stringify(data), {
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'Cache-Control': 's-maxage=86400, stale-while-revalidate=3600'
+    },
   });
 };
 
@@ -101,10 +104,11 @@ export const fetcher = (cgeo: string, keys: string[], id: string): Promise<Video
       // missing or empty adaptiveFormats
       throw new Error(data?.message || 'Missing adaptiveFormats');
     })
-    .catch(() =>
+    .catch((err) => {
+      console.error(`Key failed for ID ${id}. Error: ${err.message || err}`);
       // on any failure, try the next key
-      fetcher(cgeo, keys, id)
-    );
+      return fetcher(cgeo, keys, id);
+    });
 };
 
 
