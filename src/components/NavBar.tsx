@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 import { For, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import './NavBar.css';
 import { config, setConfig } from '@lib/utils';
 import { navStore, setNavStore, store, setStore, t } from '@lib/stores';
+=======
+import { navStore, setNavStore, t } from "@stores";
+import { setDrawer } from "@utils";
+>>>>>>> upstream/main
 
 type NavItem = {
     id: 'Hub' | 'Library' | 'Search' | 'Settings',
@@ -14,6 +19,7 @@ type NavItem = {
 
 export default function() {
 
+<<<<<<< HEAD
   function saveHome(name: 'Hub' | 'Library' | 'Search') {
       if (store.homeView === name && navStore.home.state) {
         setNavStore('home', 'state', false);
@@ -72,6 +78,8 @@ export default function() {
     });
   };
 
+=======
+>>>>>>> upstream/main
   return (
     <nav class="main-nav">
       <div class="nav-logo">
@@ -79,6 +87,7 @@ export default function() {
           <span class="nav-logo-text">Ytify</span>
       </div>
 
+<<<<<<< HEAD
       <div class="nav-items">
           <For each={items}>
               {(item) => (
@@ -94,6 +103,30 @@ export default function() {
               )}
           </For>
       </div>
+=======
+      <i
+        aria-label={t('nav_search')}
+        class={'ri-search-2-' + (navStore.active === 'search' ? 'fill' : 'line')
+        }
+        classList={{
+          'on': navStore.active === 'search'
+        }}
+        onclick={() => {
+          setNavStore('active', 'search');
+          setDrawer('lastMainFeature', 'search');
+        }}
+      ></i>
+
+      <i
+        aria-label={t('nav_library')}
+        class={'ri-archive-stack-' + (navStore.active === 'library' ? 'fill' : 'line')}
+        classList={{ 'on': navStore.active === 'library' }}
+        onclick={() => {
+          setNavStore('active', 'library');
+          setDrawer('lastMainFeature', 'library');
+        }}
+      ></i>
+>>>>>>> upstream/main
 
       {/* User/Login Button */}
       <Show
