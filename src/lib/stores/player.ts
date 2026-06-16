@@ -1,17 +1,13 @@
 import { createRoot, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
-import { addToCollection, config, cssVar, player, themer } from "@lib/utils";
-import { navStore, params, updateParam } from "./navigation";
-import { addToQueue, queueStore, setQueueStore } from "./queue";
-import audioErrorHandler from "@lib/modules/audioErrorHandler";
-import { setStore, store } from "./app";
-import getStreamData from "../modules/getStreamData";
+import { navStore, params, updateParam, addToQueue, queueStore, setQueueStore, setStore, store, groupQueueByAuthor } from "@stores";
+import { config, cssVar, themer, addToCollection, player, shuffle, streamCache } from "@utils";
+import { isQueuePrefetchActive } from "@modules/queuePrefetch";
 
 const blankImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 type PlayerStore = {
-  stream: CollectionItem,
-  history: CollectionItem[],
+  stream: TrackItem & { albumId?: string },
   audio: HTMLAudioElement,
   context: {
     src: Context,
@@ -32,13 +28,14 @@ type PlayerStore = {
   audioURL: string,
   videoURL: string,
   isWatching: boolean,
+  proxy: string,
   lrcSync?: (d: number) => void
 };
 
 const createInitialState = (): PlayerStore => ({
   audio: new Audio(),
   playbackState: 'none',
-  context: { id: 'query', src: 'link' },
+  context: { id: '', src: '' },
   status: '',
   currentTime: 0,
   fullDuration: 0,
@@ -52,7 +49,6 @@ const createInitialState = (): PlayerStore => ({
     id: '',
     duration: ''
   },
-  history: [],
   mediaArtwork: blankImage,
   supportsOpus: navigator.mediaCapabilities.decodingInfo({
     type: 'file',
@@ -65,38 +61,70 @@ const createInitialState = (): PlayerStore => ({
   isMusic: true,
   audioURL: '',
   videoURL: '',
-  isWatching: Boolean(config.watchMode)
+  isWatching: Boolean(config.watchMode),
+  proxy: ''
 });
 
-const [playerStore, setPlayerStore] = createStore(createInitialState());
+export const [playerStore, setPlayerStore] = createStore(createInitialState());
+
+const backgroundAudio = new Audio();
+backgroundAudio.muted = true;
+backgroundAudio.preload = 'auto';
 
 export function playNext() {
   const { stream } = playerStore;
   const { list } = queueStore;
   const nextStream = list[0];
-  setPlayerStore('history', h => [{ ...stream }, ...h]);
+
+  if (!nextStream) return;
+
+  if (stream.id) setQueueStore('history', h => [{ ...stream }, ...h]);
+
   setPlayerStore('stream', nextStream);
-  setQueueStore('list', l => l.slice(1));
+  setPlayerStore('context', {
+    id: nextStream.context?.id || '',
+    src: nextStream.context?.src || ''
+  });
+  setQueueStore('list', l => {
+    let newList = l.slice(1);
+    if (newList.length > 1) {
+      if (config.persistentShuffle) newList = shuffle(newList);
+      if (config.authorGrouping) newList = groupQueueByAuthor(newList);
+    }
+    return newList;
+  });
   player(nextStream.id);
-
 }
-
 export function playPrev() {
-  const { history, stream } = playerStore;
+  const { stream } = playerStore;
+  const { history } = queueStore;
 
   if (!history.length) return;
 
   const prevStream = history[0];
-  setPlayerStore('history', h => h.slice(1));
-  setQueueStore('list', l => [{ ...stream }, ...l]);
+  if (!prevStream) return;
+
+  setQueueStore('history', h => h.slice(1));
+  if (stream.id) setQueueStore('list', l => [{ ...stream }, ...l]);
 
   setPlayerStore('stream', prevStream);
+  setPlayerStore('context', {
+    id: prevStream.context?.id || '',
+    src: prevStream.context?.src || ''
+  });
   player(prevStream.id);
 }
-
 createRoot(() => {
+<<<<<<< HEAD
   let historyID: string | undefined = undefined;
+=======
+
+  let historyID: string | undefined = '';
+>>>>>>> upstream/main
   let historyTimeoutId = 0;
+
+  if ('mediaSession' in navigator)
+    import('@modules/mediaSession').then(m => m.initMediaSession());
 
   playerStore.audio.volume = playerStore.volume;
 
@@ -106,11 +134,19 @@ createRoot(() => {
     else {
       updateParam('s');
       setPlayerStore('playbackState', 'none');
+      if ('mediaSession' in navigator)
+        import('@modules/mediaSession').then(m => m.updateMediaSessionPlaybackState('none'));
     }
   }
 
   playerStore.audio.onplaying = () => {
     setPlayerStore('playbackState', 'playing');
+    if ('mediaSession' in navigator)
+      import('@modules/mediaSession').then(m => {
+        m.updateMediaSessionPlaybackState('playing');
+        m.updateMediaSessionPosition();
+      });
+
     const { stream } = playerStore;
     const { id } = stream;
 
@@ -129,6 +165,11 @@ createRoot(() => {
 
   playerStore.audio.onpause = () => {
     setPlayerStore('playbackState', 'paused');
+    if ('mediaSession' in navigator)
+      import('@modules/mediaSession').then(m => {
+        m.updateMediaSessionPlaybackState('paused');
+        m.updateMediaSessionPosition();
+      });
     clearTimeout(historyTimeoutId);
   };
   playerStore.audio.addEventListener('loadeddata', themer);
@@ -136,7 +177,7 @@ createRoot(() => {
 
   let isPlayable = false;
   const playableCheckerID = setInterval(() => {
-    if (playerStore.history.length || params.has('url') || params.has('text') || !params.has('s')) {
+    if (queueStore.history.length || params.has('url') || params.has('text') || !params.has('s')) {
       isPlayable = true;
       clearInterval(playableCheckerID);
     }
@@ -206,40 +247,44 @@ createRoot(() => {
       currentTime: 0,
       fullDuration: Math.floor(playerStore.audio.duration)
     });
+
+    if ('mediaSession' in navigator)
+      import('@modules/mediaSession').then(m => m.updateMediaSessionPosition());
   }
 
   playerStore.audio.oncanplaythrough = async function() {
-    const nextItem = config.queuePrefetch && queueStore.list[0]?.id;
+    const nextItem = isQueuePrefetchActive() && queueStore.list[0]?.id;
 
     if (!nextItem) return;
 
-    const data = await getStreamData(nextItem, true);
-    const prefetchRef = new Audio();
-    prefetchRef.onerror = () => audioErrorHandler(prefetchRef, nextItem);
-    if (data && 'adaptiveFormats' in data)
+    const cached = streamCache.get(nextItem);
+
+    if (cached && 'adaptiveFormats' in cached) {
+      const formats = (cached as Invidious).adaptiveFormats
+        .filter(f => f.type.startsWith('audio'))
+        .sort((a, b) => (parseInt(a.bitrate) - parseInt(b.bitrate)));
+
       import('../modules/setAudioStreams')
-        .then(mod => mod.default(
-          data.adaptiveFormats
-            .filter(f => f.type.startsWith('audio'))
-            .sort((a, b) => (parseInt(a.bitrate) - parseInt(b.bitrate))),
-          prefetchRef
-        ));
+        .then(mod => mod.default(formats, backgroundAudio));
+    }
   }
 
-  playerStore.audio.onerror = () => audioErrorHandler(playerStore.audio);
+  playerStore.audio.onerror = () => import('@modules/audioErrorHandler').then(mod => mod.default(playerStore.audio));
 
 });
 
 async function getRecommendations() {
 
-  const title = encodeURIComponent(playerStore.stream.title);
+  const currentTitle = playerStore.stream.title;
+  const title = encodeURIComponent(currentTitle);
   const artist = encodeURIComponent(playerStore.stream.author?.slice(0, -8) ?? '');
-  fetch(`${store.api}/api/tracks?title=${title}&artist=${artist}&limit=10`)
+  fetch(`${store.api}/similar?title=${title}&artist=${artist}&limit=10`)
     .then(res => res.json())
-    .then(addToQueue)
+    .then(data => addToQueue(data.map((item: TrackItem) => ({
+      ...item,
+      context: { src: 'queue', id: `Similar to ${currentTitle}` }
+    }))))
     .catch(e => setStore('snackbar', `Could not get recommendations for the track: ${e.message}`));
 
+
 }
-
-
-export { playerStore, setPlayerStore };

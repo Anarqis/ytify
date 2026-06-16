@@ -1,10 +1,8 @@
-import { convertSStoHHMMSS } from "./helpers";
-import { playerStore, setPlayerStore, setStore, store } from "@lib/stores";
-import { config } from "./config";
-import getStreamData from "../modules/getStreamData";
+import { playerStore, setPlayerStore, setStore, store } from "@stores";
+import { config, convertSStoHHMMSS, streamCache } from "@utils";
 
 let playerAbortController: AbortController;
-export async function player(id?: string, isRetry = false) {
+export async function player(id?: string) {
 
   if (playerAbortController)
     playerAbortController.abort();
@@ -24,16 +22,11 @@ export async function player(id?: string, isRetry = false) {
 
   if (!store.useSaavn)
     setStore('useSaavn', true);
-  else if (playerStore.stream.author?.endsWith('Topic'))
+  else if (playerStore.stream.author?.endsWith('Topic') && !streamCache.get(id))
     return import('../modules/jioSaavn').then(mod => mod.default());
 
-  if (!store.invidious.length)
-    setStore('snackbar', 'No Instances are Available');
-
+  const getStreamData = await import('@modules/getStreamData').then(mod => mod.default);
   const data = await getStreamData(id, false, playerAbortController.signal);
-
-  if (!isRetry)
-    setStore('index', 0);
 
   if (data && 'adaptiveFormats' in data)
     setPlayerStore({
@@ -72,9 +65,9 @@ export async function player(id?: string, isRetry = false) {
     });
 
 
-    if (config.similarContent && !enforceVideo)
-      import('../modules/enqueueRelatedStreams')
-        .then(mod => mod.default(invidiousData.recommendedVideos));
+  if (config.similarContent && !enforceVideo)
+    import('../modules/enqueueRelatedStreams')
+      .then(mod => mod.default(invidiousData.recommendedVideos));
 
 
 

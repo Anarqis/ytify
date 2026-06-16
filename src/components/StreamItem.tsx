@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Accessor, Show, createSignal } from "solid-js";
 import "./StreamItem.css";
 import {
@@ -31,6 +32,16 @@ export default function (data: {
   img?: string;
   albumId?: string;
   draggable?: boolean;
+=======
+import { Accessor, Show, createSignal } from 'solid-js';
+import './StreamItem.css';
+import { config, hostResolver, player, removeFromCollection, getCollectionItems, generateImageUrl } from '@utils';
+import { setStore, store, queueStore, setQueueStore, listStore, navStore, setNavStore, playerStore, setPlayerStore } from '@stores';
+
+export default function(data: YTItem & {
+  draggable?: boolean,
+  inQueue?: boolean,
+>>>>>>> upstream/main
   context?: {
     src: Context;
     id: string;
@@ -56,7 +67,13 @@ export default function (data: {
     if (src.includes("webp"))
       setImage(src.replace(".webp", ".jpg").replace("vi_webp", "vi"));
     else {
+<<<<<<< HEAD
       if (data.context) removeFromCollection(data.context?.id, [data.id]);
+=======
+      // most likely been removed from yt so remove it
+      if (data.context?.src)
+        removeFromCollection(data.context?.id, [data.id])
+>>>>>>> upstream/main
     }
   }
 
@@ -74,6 +91,7 @@ export default function (data: {
   const isFromArtist = data.context?.id?.startsWith("Artist - ");
   const isMusic = data.author?.endsWith("- Topic");
 
+<<<<<<< HEAD
   // Basic Live detection from views/duration
   const isLive = () =>
     data.duration === "LIVE" ||
@@ -95,6 +113,19 @@ export default function (data: {
   return (
     <a
       class="content-card"
+=======
+
+  const isAlbum = data.context?.id.startsWith('MPREb') || listStore.type === 'album';
+  const isFromArtist = data.context?.id?.startsWith('Artist - ');
+  const isMusic = data.author?.endsWith('- Topic');
+
+  if (config.loadImage && !isAlbum)
+    setImage(generateImageUrl(data.img || data.id, 'mq', data.context?.id === 'favorites' || isFromArtist || ((data.context?.src === 'queue') && isMusic)));
+
+  return (
+    <a
+      class='streamItem card card--interactive'
+>>>>>>> upstream/main
       classList={{
         ravel: config.loadImage && !isAlbum,
         marked: data.mark?.get(data.id),
@@ -106,9 +137,25 @@ export default function (data: {
         e.preventDefault();
 
         if (data.removeMode) {
+<<<<<<< HEAD
           setQueueStore("list", (list) =>
             list.filter((item) => item.id !== data.id),
           );
+=======
+          setQueueStore('list', (list) => {
+            const index = list.findIndex(item =>
+              item.id === data.id &&
+              item.context?.id === data.context?.id &&
+              item.context?.src === data.context?.src
+            );
+            if (index !== -1) {
+              const newList = [...list];
+              newList.splice(index, 1);
+              return newList;
+            }
+            return list;
+          });
+>>>>>>> upstream/main
           return;
         }
 
@@ -117,6 +164,7 @@ export default function (data: {
           return;
         }
 
+<<<<<<< HEAD
         // Logic to stop propagation if clicking actions
         const target = e.target as HTMLElement;
         if (
@@ -124,6 +172,15 @@ export default function (data: {
           !target.closest(".card-handle")
         ) {
           setPlayerStore("stream", {
+=======
+        if (!e.target.classList.contains('ri-more-2-fill')) {
+
+          if (playerStore.stream.id) {
+            setQueueStore('history', h => [{ ...playerStore.stream }, ...h]);
+          }
+
+          setPlayerStore('stream', {
+>>>>>>> upstream/main
             id: data.id,
             title: data.title,
             author: data.author || "",
@@ -135,11 +192,18 @@ export default function (data: {
           else if (playerStore.stream.albumId)
             setPlayerStore("stream", "albumId", undefined);
 
+<<<<<<< HEAD
           if (data.context)
             setPlayerStore("context", {
               id: data.context.id,
               src: data.context.src,
             });
+=======
+          setPlayerStore('context', {
+            id: data.context?.id || '',
+            src: data.context?.src || ''
+          });
+>>>>>>> upstream/main
 
           const isPortrait = matchMedia("(orientation:portrait)").matches;
 
@@ -149,6 +213,7 @@ export default function (data: {
             if (config.watchMode) navStore.player.ref?.scrollIntoView();
           }
 
+<<<<<<< HEAD
           // Contextual fill (ZigZag queue) logic
           if (
             config.contextualFill &&
@@ -166,18 +231,28 @@ export default function (data: {
             const currentIndex = collectionItems.findIndex(
               (item) => item.id === data.id,
             );
+=======
+          if (config.contextualFill && (data.context?.src === 'collection' || (data.context?.src === 'playlists')) && data.context?.id !== 'history') {
+            const collectionItems = data.context.src === 'collection' ? getCollectionItems(data.context.id) :
+              listStore.list;
+            const currentIndex = collectionItems.findIndex(item => item.id === data.id);
+>>>>>>> upstream/main
             if (currentIndex !== -1) {
-              const zigzagQueue: CollectionItem[] = [];
+              const zigzagQueue: TrackItem[] = [];
               let left = currentIndex - 1;
               let right = currentIndex + 1;
               const len = collectionItems.length;
 
+              const historyIds = new Set(queueStore.history.map(i => i.id));
+
               while (left >= 0 || right < len) {
                 if (right < len) {
-                  zigzagQueue.push(collectionItems[right++]);
+                  const item = collectionItems[right++];
+                  if (!historyIds.has(item.id)) zigzagQueue.push(item);
                 }
                 if (left >= 0) {
-                  zigzagQueue.push(collectionItems[left--]);
+                  const item = collectionItems[left--];
+                  if (!historyIds.has(item.id)) zigzagQueue.push(item);
                 }
               }
               setQueueStore("list", zigzagQueue);
@@ -186,13 +261,48 @@ export default function (data: {
 
           player(data.id);
 
+<<<<<<< HEAD
           if (data.context?.src === "queue") {
             const indexToRemove = parseInt(data.context.id, 10);
             setQueueStore("list", (list) =>
               list.filter((_, idx) => idx !== indexToRemove),
+=======
+          setQueueStore('list', (list) => {
+            const index = list.findIndex(item =>
+              item.id === data.id &&
+              item.context?.id === data.context?.id &&
+              item.context?.src === data.context?.src
+>>>>>>> upstream/main
             );
-          }
+            if (index !== -1) {
+              const newList = [...list];
+              newList.splice(index, 1);
+              return newList;
+            }
+            return list;
+          });
         }
+<<<<<<< HEAD
+=======
+        else {
+          setStore('actionsMenu', {
+            id: data.id,
+            title: data.title,
+            author: data.author,
+            duration: data.duration,
+            authorId: data.authorId,
+            context: data.context
+          });
+
+
+          const { albumId } = data;
+          if (store.actionsMenu?.albumId)
+            setStore('actionsMenu', 'albumId', undefined);
+          if (albumId)
+            setStore('actionsMenu', 'albumId', albumId);
+
+        }
+>>>>>>> upstream/main
       }}
     >
       <div class="card-media">
@@ -215,6 +325,18 @@ export default function (data: {
             </span>
           </Show>
         </Show>
+<<<<<<< HEAD
+=======
+      </span>
+      <div class='metadata'>
+        <p class='title'>{data.title}</p>
+        <div class='avu'>
+          <p class='author truncate'>{data.author?.replace(' - Topic', '')}</p>
+          <Show when={!isAlbum}>
+            <p class='viewsXuploaded truncate'>{data.subtext}</p>
+          </Show>
+        </div>
+>>>>>>> upstream/main
       </div>
 
       <div class="card-info">
@@ -235,6 +357,7 @@ export default function (data: {
           <i aria-label="Drag" class="ri-draggable"></i>
         </div>
       </Show>
+<<<<<<< HEAD
 
       <Show when={!data.draggable && data.context?.src !== "queue"}>
         <button
@@ -260,6 +383,10 @@ export default function (data: {
         >
           <i class="ri-more-2-fill"></i>
         </button>
+=======
+      <Show when={!data.draggable && !data.inQueue}>
+        <i aria-label="More" class="ri-more-2-fill"></i>
+>>>>>>> upstream/main
       </Show>
     </a>
   );

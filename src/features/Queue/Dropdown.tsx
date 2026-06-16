@@ -1,7 +1,7 @@
 import './Queue.css';
-import { setStore, t, addToQueue, queueStore } from "@lib/stores";
-import { config, setConfig } from "@lib/utils";
-import { setQueueStore, groupQueueByAuthor } from "@lib/stores/queue";
+import { setStore, t, addToQueue, queueStore, setQueueStore, groupQueueByAuthor } from "@stores";
+import { config, setConfig } from "@utils";
+import { isQueuePrefetchActive, activateQueuePrefetch, deactivateQueuePrefetch } from "@modules/queuePrefetch";
 
 export default function Dropdown() {
   return (
@@ -15,22 +15,13 @@ export default function Dropdown() {
         <li
           classList={{ on: config.persistentShuffle }}
           onclick={(e) => {
-            setConfig('persistentShuffle', !config.persistentShuffle);
+            const val = !config.persistentShuffle;
+            setConfig('persistentShuffle', val);
+            if (val && isQueuePrefetchActive()) deactivateQueuePrefetch();
             (e.currentTarget as HTMLElement).classList.toggle('on');
           }}
         >
           {t('queue_persistent_shuffle')}
-        </li>
-
-        <li
-          classList={{ on: config.manualOrdering }}
-          onclick={(e) => {
-            setConfig('manualOrdering', !config.manualOrdering);
-            setStore('snackbar', t('queue_reload_notification'));
-            (e.currentTarget as HTMLElement).classList.toggle('on');
-          }}
-        >
-          {t('queue_manual_ordering')}
         </li>
 
         <li
@@ -45,31 +36,6 @@ export default function Dropdown() {
           }}
         >
           {t('queue_duration_filter')}
-        </li>
-
-        <li
-          classList={{ on: config.allowDuplicates }}
-          onclick={(e) => {
-            const allowDuplicates = !config.allowDuplicates;
-            setConfig('allowDuplicates', allowDuplicates);
-            (e.currentTarget as HTMLElement).classList.toggle('on');
-
-            if (!allowDuplicates) {
-              setQueueStore('list', (list) => {
-                const uniqueIds = new Set<string>();
-                return list.filter(item => {
-                  if (uniqueIds.has(item.id)) {
-                    return false;
-                  } else {
-                    uniqueIds.add(item.id);
-                    return true;
-                  }
-                });
-              });
-            }
-          }}
-        >
-          {t('queue_allow_duplicates')}
         </li>
 
         <li
@@ -94,9 +60,14 @@ export default function Dropdown() {
         </li>
 
         <li
-          classList={{ on: config.queuePrefetch }}
+          classList={{ on: isQueuePrefetchActive() }}
           onclick={(e) => {
-            setConfig('queuePrefetch', !config.queuePrefetch);
+            if (!isQueuePrefetchActive()) {
+              if (config.persistentShuffle) setConfig('persistentShuffle', false);
+              activateQueuePrefetch();
+            } else {
+              deactivateQueuePrefetch();
+            }
             (e.currentTarget as HTMLElement).classList.toggle('on');
           }}
         >
@@ -119,7 +90,8 @@ export default function Dropdown() {
 
         <li onclick={
           () => {
-            setQueueStore('list', [])
+            setQueueStore('list', []);
+            setQueueStore('history', []);
           }
         }>
           {t('queue_clear')}
