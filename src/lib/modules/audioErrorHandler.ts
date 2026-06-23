@@ -1,13 +1,12 @@
-import { setStore, store } from '@lib/stores/app.ts';
-import { playerStore, setPlayerStore } from '@lib/stores/player.ts';
-import { player } from '@lib/utils';
-
+import { setStore, playerStore, setPlayerStore } from '@stores';
+import { streamCache } from '@utils';
 
 export default function(
-  audio: HTMLAudioElement,
+  audio: HTMLAudioElement | HTMLVideoElement,
   prefetch = ''
 ) {
   audio.pause();
+<<<<<<< HEAD
   const message = 'Error 403 : Unauthenticated Stream';
   const { stream } = playerStore;
   const id = prefetch || stream.id;
@@ -26,31 +25,51 @@ export default function(
     setPlayerStore('playbackState', 'none');
     return;
   }
+=======
+  const { proxy } = playerStore;
+>>>>>>> upstream/main
 
-  if (audio.src.endsWith('&fallback')) {
-    if (!playerStore.isWatching) {
-      setStore('snackbar', message);
+  if (!audio.src || audio.src === location.href) return;
+
+  const url = new URL(audio.src);
+  const isFallback = audio.src.endsWith('&fallback');
+  const isAlreadyProxy = url.origin === proxy || audio.dataset.retried === 'true';
+
+  const id = prefetch || playerStore.stream.id;
+
+  if (isFallback) {
+    if (!playerStore.isWatching && !prefetch) {
+      setStore('snackbar', 'Error 403 : Unauthenticated Stream');
       setPlayerStore('playbackState', 'none');
     }
+    streamCache.remove(id);
     return;
   }
-  console.log('ErrorHandler: ' + audio.src);
 
-  if (index < invidious.length) {
-    const proxy = invidious[index];
-    if (!prefetch)
-      setPlayerStore('status', `Switching proxy to ${proxy.slice(8)}`);
-    if (audio.src.includes(proxy))
-      audio.src = audio.src.replace(proxy, origin);
-    else
-      audio.src = audio.src.replace(origin, proxy);
-    setStore('index', index + 1)
-  }
-  else {
-    setStore('index', 0);
+  if (!proxy || isAlreadyProxy) {
     if (!prefetch) {
-      setPlayerStore('status', 'Finding new source...');
+      setPlayerStore({
+        playbackState: 'none',
+        status: 'Streaming Failed EA'
+      });
+      setStore('snackbar', 'Streaming Failed EA');
+      console.log(audio.src);
     }
-    player(id, true);
+    streamCache.remove(id);
+    return;
+  }
+
+  console.log('ErrorHandler: Switching to proxy ' + proxy);
+  const newSrc = audio.src.replace(url.origin, proxy);
+
+  if (newSrc !== audio.src) {
+    audio.dataset.retried = 'true';
+    audio.src = newSrc;
+  } else if (!prefetch) {
+    setPlayerStore({
+      playbackState: 'none',
+      status: 'Streaming Failed EB'
+    });
+    streamCache.remove(id);
   }
 }
