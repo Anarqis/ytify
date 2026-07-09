@@ -1,5 +1,5 @@
-import { playerStore } from '@lib/stores';
-import { config } from './config';
+import { playerStore } from '@stores';
+import { config } from '@utils';
 
 
 // Generates both channel and stream thumbnails
@@ -132,8 +132,6 @@ export function themer() {
 
 }
 
-if (config.roundness !== '0.4rem')
-  cssVar('--roundness', config.roundness);
 if (config.landscapeSections !== '2')
   cssVar('--landscapeSections', config.landscapeSections);
 
