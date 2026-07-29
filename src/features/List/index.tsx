@@ -1,67 +1,54 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, For, onMount, Show, onCleanup } from 'solid-js';
 import './List.css';
-import Sortable, { type SortableEvent } from 'sortablejs';
-import { addToQueue, listStore, resetList, setListStore, setNavStore, t } from '@lib/stores';
-import { fetchCollection, metaUpdater, removeFromCollection, saveCollection } from '@lib/utils/library';
-import { setConfig, config } from '@lib/utils/config';
-import { generateImageUrl, getThumbIdFromLink } from '@lib/utils';
+import { addToQueue, listStore, resetList, setNavStore, t, setQueueStore } from '@stores';
+import { fetchCollection, removeFromCollection, setConfig, config, generateImageUrl, setDrawer, getCollectionItems } from '@utils';
 import Dropdown from './Dropdown';
 import Results from './Results';
 import CollectionSelector from '@components/ActionsMenu/CollectionSelector';
-import ListItem from '@components/ListItem'; // Added import
+import ListItem from '@components/ListItem';
 
-type SortOrder = 'modified' | 'name' | 'artist' | 'duration';
+type SortBy = 'modified' | 'name' | 'artist' | 'duration';
 
 export default function() {
   let listSection!: HTMLElement;
-  let sortableRef: Sortable | undefined;
 
   const [markMode, setMarkMode] = createSignal(false);
+  const [isSearching, setIsSearching] = createSignal(false);
   const [markList, setMarkList] = createSignal<string[]>([]);
   const [showStreamsNumber, setShowStreamsNumber] = createSignal(false);
-  const [showSortMenu, setShowSortMenu] = createSignal(false);
-  const [localSortOrder, setLocalSortOrder] = createSignal<SortOrder>(config.sortOrder);
+  const [localSortBy, setLocalSortBy] = createSignal<SortBy>(config.sortBy);
+  const [localSortOrder, setLocalSortOrder] = createSignal<'asc' | 'desc'>(config.sortOrder);
+  const [showSortable, setShowSortable] = createSignal(false);
+  const [searchQuery, setSearchQuery] = createSignal('');
 
-  function initSortable() {
-    const listContainer = document.querySelector('.listContainer') as HTMLDivElement;
-    sortableRef = new Sortable(listContainer, {
-      handle: '.ri-draggable',
-      onUpdate(e: SortableEvent) {
-        if (e.oldIndex == null || e.newIndex == null) return;
+  const filteredItems = () => {
+    const query = searchQuery().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    if (!query) return listStore.list;
 
-        setListStore('list', (currentList) => {
-          const newList = [...currentList];
-          const [removedItem] = newList.splice(e.oldIndex!, 1);
-          newList.splice(e.newIndex!, 0, removedItem);
+    const source = listStore.type === 'collection' && !listStore.isShared
+      ? getCollectionItems(listStore.id)
+      : listStore.list;
 
-          const collection = listStore.id;
-          const dataArray = newList.map(item => item.id);
-          saveCollection(collection, dataArray);
-          metaUpdater(collection);
-
-          return [...newList];
-        });
-      }
+    return source.filter(item => {
+      const normalize = (str: string) => str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+      return normalize(item.title).includes(query) || normalize(item.author).includes(query);
     });
-  }
+  };
 
   onMount(() => {
     setNavStore('list', 'ref', listSection);
     listSection.scrollIntoView();
-    listSection.scrollTo(0, 0);
-    setNavStore('home', 'state', false);
   });
-  createEffect(() => {
-    if (localSortOrder() === 'modified' && showSortMenu()) {
-      initSortable();
-    } else {
-      sortableRef?.destroy();
-      sortableRef = undefined;
-    }
-  });
+
   onCleanup(() => {
-    sortableRef?.destroy();
-    sortableRef = undefined;
+    if (listStore.id) {
+      setDrawer('lastList', {
+        id: listStore.id,
+        type: listStore.type === 'playlists' ? 'playlist' : (listStore.type === 'channels' ? 'channel' : listStore.type),
+        shared: listStore.isShared
+      });
+    }
+    resetList();
   });
 
 
@@ -92,10 +79,12 @@ export default function() {
           class="ri-list-check-2"
           onclick={() => {
 
-            const listToEnqueue = markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as CollectionItem[];
+            const listToEnqueue = markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as TrackItem[];
 
             if (listToEnqueue.length) {
+              setQueueStore('history', []);
               addToQueue(listToEnqueue);
+              setNavStore('queue', 'state', false);
               setNavStore('queue', 'state', true);
             }
 
@@ -103,7 +92,7 @@ export default function() {
         ></i>
 
         <i aria-label={t('collection_selector_add_to')}>
-          <CollectionSelector data={markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as CollectionItem[]
+          <CollectionSelector data={markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as TrackItem[]
           } />
         </i>
       </Show>
@@ -112,18 +101,36 @@ export default function() {
 
   return (
     <section ref={listSection} id="listSection">
-      <header>
+      <header class="sticky-bar">
         <Show
           when={!markMode()}
           fallback={<MarkBar />}>
-          <p
-            onclick={() => setShowStreamsNumber(!showStreamsNumber())}
-            id="listTitle"
-          >{
-              showStreamsNumber() ?
-                t('list_streams_count', listStore.length.toString()) :
-                listStore.name
-            }</p>
+          <Show when={!isSearching()} fallback={
+            <input
+              autofocus
+              type="text"
+              class="listSearchInput"
+              placeholder="Search within List"
+              oninput={(e) => {
+                setSearchQuery((e.target as HTMLInputElement).value.toLowerCase());
+              }}
+              onkeydown={(e) => {
+                if (e.key === 'Escape') {
+                  setIsSearching(false);
+                  setSearchQuery('');
+                }
+              }}
+            />
+          }>
+            <p
+              onclick={() => setShowStreamsNumber(!showStreamsNumber())}
+              id="listTitle"
+            >{
+                showStreamsNumber() ?
+                  t('list_streams_count', listStore.length.toString()) :
+                  listStore.name
+              }</p>
+          </Show>
         </Show>
 
 
@@ -139,54 +146,78 @@ export default function() {
             }}
           ></i>
           <i
-            aria-label={t('close')}
-            class="ri-close-large-line"
-            onclick={resetList}
+            aria-label={t('nav_search')}
+            class="ri-search-2-line"
+            onclick={() => {
+              setIsSearching(!isSearching());
+              if (!isSearching()) setSearchQuery('');
+            }}
           ></i>
         </div>
-        <Dropdown toggleSort={() => setShowSortMenu(!showSortMenu())} />
+        <Dropdown />
+
+
       </header>
 
 
-      <Show when={showSortMenu()}>
-        <span>
+      <Show when={listStore.type === 'collection' && listStore.id && !listStore.reservedCollections.includes(listStore.id)}>
+        <span class="sortBar">
           <label for="sortMenu">{t('list_sort_order')} :</label>
           <select id="sortMenu" onchange={(e) => {
-            const newSortOrder = e.target.value as SortOrder;
-            setLocalSortOrder(newSortOrder);
-            setConfig('sortOrder', newSortOrder);
+            const newSortBy = e.target.value as SortBy;
+            setLocalSortBy(newSortBy);
+            setConfig('sortBy', newSortBy);
             fetchCollection(listStore.id);
-          }} value={localSortOrder()}>
+          }} value={localSortBy()}>
             <option value="modified">{t('list_sort_modified')}</option>
             <option value="name">{t('list_sort_name')}</option>
             <option value="artist">{t('list_sort_artist')}</option>
             <option value="duration">{t('list_sort_duration')}</option>
           </select>
+          <Show when={localSortBy() === 'modified' && !listStore.reservedCollections.includes(listStore.id)}>
+            <i
+              class="ri-draggable"
+              classList={{ 'active': showSortable() }}
+              onclick={() => setShowSortable(!showSortable())}
+            ></i>
+          </Show>
+          <i
+            class={localSortOrder() === 'asc' ? 'ri-sort-asc' : 'ri-sort-desc'}
+            onclick={() => {
+              const newOrder = config.sortOrder === 'asc' ? 'desc' : 'asc';
+              setConfig('sortOrder', newOrder);
+              setLocalSortOrder(newOrder);
+              fetchCollection(listStore.id);
+            }}
+          ></i>
         </span>
 
       </Show>
+
       <Show when={listStore.name.startsWith('Artist') && listStore.artistAlbums?.length}>
-        <div class="albums-carousel">
+        <div class="list-carousel">
           <For each={listStore.artistAlbums}>
             {(album) => (
               <ListItem
-                title={album.title}
-                stats={album.subtitle}
-                thumbnail={generateImageUrl(getThumbIdFromLink(album.thumbnail), '')}
-                uploaderData={listStore.name.replace('Artist - ', '')}
-                url={`/playlist/${album.id}`}
+                name={album.name}
+                year={album.year}
+                img={album.img}
+                author={album.author}
+                id={album.id}
+                type='album'
               />
             )}
           </For>
         </div>
       </Show>
 
-      <Show when={config.loadImage && listStore.name.startsWith('Album')}>
-        <img src={listStore.thumbnail.replace('w=360', 'w=720')} alt={listStore.name} class="list-thumbnail" />
+      <Show when={config.loadImage && listStore.id.startsWith('MPREb')}>
+        <img src={generateImageUrl(listStore.img, '720')} alt={listStore.name} class="list-thumbnail" />
       </Show>
 
       <Results
-        draggable={localSortOrder() === 'modified' && showSortMenu()}
+        items={filteredItems()}
+        draggable={showSortable() && localSortBy() === 'modified' && !listStore.reservedCollections.includes(listStore.id)}
         mark={{
           mode: markMode,
           set: (id: string) => {
