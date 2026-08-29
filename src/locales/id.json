@@ -42,7 +42,6 @@
     "queue_change_notification": "Perubahan akan diterapkan mulai stream berikutnya",
     "queue_author_grouping": "Pengelompokan Penulis",
     "queue_prefetch": "Prefetch Antrian",
-    "queue_standby_header": "Saran Untuk Anda",
     "fetchlist_url_null": "Tidak Ada URL Kanal yang Diberikan",
     "fetchlist_error": "Tidak dapat memperoleh playlistData",
     "fetchlist_nonexistent": "Mendapat kesalahan: \"Daftar putar tidak ada.\"",
@@ -221,5 +220,6 @@
     "library_import_songshift": "Impor Daftar Putar dari SongShift",
     "library_about_ytify": "Tentang ytify",
     "nav_logout": "Logout",
-    "player_video_resolution": "Resolusi"
+    "player_video_resolution": "Resolusi",
+    "queue_reload_notification": ""
 }
