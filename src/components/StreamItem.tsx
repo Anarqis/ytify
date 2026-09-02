@@ -6,6 +6,7 @@ import {
   player,
   removeFromCollection,
   getCollectionItems,
+<<<<<<< HEAD
 } from "@lib/utils";
 import { generateImageUrl } from "@lib/utils/image";
 import {
@@ -43,6 +44,40 @@ export default function (data: {
   removeMode?: boolean;
 }) {
   const [getImage, setImage] = createSignal("");
+=======
+  generateImageUrl,
+} from "@utils";
+import {
+  setStore,
+  store,
+  queueStore,
+  setQueueStore,
+  listStore,
+  navStore,
+  setNavStore,
+  playerStore,
+  setPlayerStore,
+} from "@stores";
+
+export default function (
+  data: YTItem & {
+    draggable?: boolean;
+    inQueue?: boolean;
+    context?: {
+      src: Context;
+      id: string;
+    };
+    mark?: {
+      mode: Accessor<boolean>;
+      set: (id: string) => void;
+      get: (id: string) => boolean;
+    };
+    removeMode?: boolean;
+  },
+) {
+  const [getImage, setImage] = createSignal("");
+
+>>>>>>> upstream/main
   let parent!: HTMLAnchorElement;
 
   function handleThumbnailLoad(e: Event) {
@@ -50,13 +85,22 @@ export default function (data: {
     const src = getImage();
 
     if (img.naturalWidth !== 120) {
+<<<<<<< HEAD
       parent?.classList.remove("ravel");
+=======
+      parent.classList.remove("ravel");
+>>>>>>> upstream/main
       return;
     }
     if (src.includes("webp"))
       setImage(src.replace(".webp", ".jpg").replace("vi_webp", "vi"));
     else {
+<<<<<<< HEAD
       if (data.context) removeFromCollection(data.context?.id, [data.id]);
+=======
+      // most likely been removed from yt so remove it
+      if (data.context?.src) removeFromCollection(data.context?.id, [data.id]);
+>>>>>>> upstream/main
     }
   }
 
@@ -65,6 +109,7 @@ export default function (data: {
     setImage(
       src.includes("vi_webp")
         ? src.replace(".webp", ".jpg").replace("vi_webp", "vi")
+<<<<<<< HEAD
         : "/logo192.png", // Fallback
     );
     parent?.classList.remove("ravel");
@@ -79,6 +124,18 @@ export default function (data: {
     data.duration === "LIVE" ||
     data.views?.includes("watching") ||
     data.views?.includes("spectateurs");
+=======
+        : "/logo192.png",
+    );
+
+    parent.classList.remove("ravel");
+  }
+
+  const isAlbum =
+    data.context?.id.startsWith("MPREb") || listStore.type === "album";
+  const isFromArtist = data.context?.id?.startsWith("Artist - ");
+  const isMusic = data.author?.endsWith("- Topic");
+>>>>>>> upstream/main
 
   if (config.loadImage && !isAlbum)
     setImage(
@@ -87,14 +144,22 @@ export default function (data: {
         "mq",
         data.context?.id === "favorites" ||
           isFromArtist ||
+<<<<<<< HEAD
           ((data.context?.src === "queue" || data.context?.src === "standby") &&
             isMusic),
+=======
+          (data.context?.src === "queue" && isMusic),
+>>>>>>> upstream/main
       ),
     );
 
   return (
     <a
+<<<<<<< HEAD
       class="content-card"
+=======
+      class="streamItem card card--interactive"
+>>>>>>> upstream/main
       classList={{
         ravel: config.loadImage && !isAlbum,
         marked: data.mark?.get(data.id),
@@ -106,9 +171,26 @@ export default function (data: {
         e.preventDefault();
 
         if (data.removeMode) {
+<<<<<<< HEAD
           setQueueStore("list", (list) =>
             list.filter((item) => item.id !== data.id),
           );
+=======
+          setQueueStore("list", (list) => {
+            const index = list.findIndex(
+              (item) =>
+                item.id === data.id &&
+                item.context?.id === data.context?.id &&
+                item.context?.src === data.context?.src,
+            );
+            if (index !== -1) {
+              const newList = [...list];
+              newList.splice(index, 1);
+              return newList;
+            }
+            return list;
+          });
+>>>>>>> upstream/main
           return;
         }
 
@@ -117,6 +199,7 @@ export default function (data: {
           return;
         }
 
+<<<<<<< HEAD
         // Logic to stop propagation if clicking actions
         const target = e.target as HTMLElement;
         if (
@@ -155,29 +238,74 @@ export default function (data: {
             (data.context?.src === "collection" ||
               data.context?.src === "playlists" ||
               data.context?.src === "standby") &&
+=======
+        if (!e.target.classList.contains("ri-more-2-fill")) {
+          if (playerStore.stream.id) {
+            setQueueStore("history", (h) => [{ ...playerStore.stream }, ...h]);
+          }
+
+          setPlayerStore("stream", {
+            id: data.id,
+            title: data.title,
+            author: data.author || "",
+            duration: data.duration,
+            authorId: data.authorId || "",
+          });
+
+          if (data.albumId) setPlayerStore("stream", "albumId", data.albumId);
+          else if (playerStore.stream.albumId)
+            setPlayerStore("stream", "albumId", undefined);
+
+          setPlayerStore("context", {
+            id: data.context?.id || "",
+            src: data.context?.src || "",
+          });
+
+          const isPortrait = matchMedia("(orientation:portrait)").matches;
+
+          if (isPortrait) {
+            setNavStore("player", "state", Boolean(config.watchMode));
+
+            if (config.watchMode) navStore.player.ref?.scrollIntoView();
+          }
+
+          if (
+            config.contextualFill &&
+            !queueStore.isSession &&
+            (data.context?.src === "collection" ||
+              data.context?.src === "playlists") &&
+>>>>>>> upstream/main
             data.context?.id !== "history"
           ) {
             const collectionItems =
               data.context.src === "collection"
                 ? getCollectionItems(data.context.id)
+<<<<<<< HEAD
                 : data.context.src === "standby"
                   ? queueStore.standby
                   : listStore.list;
+=======
+                : listStore.list;
+>>>>>>> upstream/main
             const currentIndex = collectionItems.findIndex(
               (item) => item.id === data.id,
             );
             if (currentIndex !== -1) {
-              const zigzagQueue: CollectionItem[] = [];
+              const zigzagQueue: TrackItem[] = [];
               let left = currentIndex - 1;
               let right = currentIndex + 1;
               const len = collectionItems.length;
 
+              const historyIds = new Set(queueStore.history.map((i) => i.id));
+
               while (left >= 0 || right < len) {
                 if (right < len) {
-                  zigzagQueue.push(collectionItems[right++]);
+                  const item = collectionItems[right++];
+                  if (!historyIds.has(item.id)) zigzagQueue.push(item);
                 }
                 if (left >= 0) {
-                  zigzagQueue.push(collectionItems[left--]);
+                  const item = collectionItems[left--];
+                  if (!historyIds.has(item.id)) zigzagQueue.push(item);
                 }
               }
               setQueueStore("list", zigzagQueue);
@@ -186,6 +314,7 @@ export default function (data: {
 
           player(data.id);
 
+<<<<<<< HEAD
           if (data.context?.src === "queue") {
             const indexToRemove = parseInt(data.context.id, 10);
             setQueueStore("list", (list) =>
@@ -200,12 +329,48 @@ export default function (data: {
           when={!isAlbum && config.loadImage}
           fallback={<div class="placeholder">{data.duration}</div>}
         >
+=======
+          setQueueStore("list", (list) => {
+            const index = list.findIndex(
+              (item) =>
+                item.id === data.id &&
+                item.context?.id === data.context?.id &&
+                item.context?.src === data.context?.src,
+            );
+            if (index !== -1) {
+              const newList = [...list];
+              newList.splice(index, 1);
+              return newList;
+            }
+            return list;
+          });
+        } else {
+          setStore("actionsMenu", {
+            id: data.id,
+            title: data.title,
+            author: data.author,
+            duration: data.duration,
+            authorId: data.authorId,
+            context: data.context,
+          });
+
+          const { albumId } = data;
+          if (store.actionsMenu?.albumId)
+            setStore("actionsMenu", "albumId", undefined);
+          if (albumId) setStore("actionsMenu", "albumId", albumId);
+        }
+      }}
+    >
+      <span>
+        <Show when={!isAlbum && config.loadImage} fallback={data.duration}>
+>>>>>>> upstream/main
           <img
             crossorigin="anonymous"
             onerror={handleThumbnailError}
             onload={handleThumbnailLoad}
             src={getImage()}
           />
+<<<<<<< HEAD
           <Show
             when={isLive()}
             fallback={<span class="card-duration">{data.duration}</span>}
@@ -215,6 +380,19 @@ export default function (data: {
             </span>
           </Show>
         </Show>
+=======
+          <p class="duration">{data.duration}</p>
+        </Show>
+      </span>
+      <div class="metadata">
+        <p class="title">{data.title}</p>
+        <div class="avu">
+          <p class="author truncate">{data.author?.replace(" - Topic", "")}</p>
+          <Show when={!isAlbum}>
+            <p class="viewsXuploaded truncate">{data.subtext}</p>
+          </Show>
+        </div>
+>>>>>>> upstream/main
       </div>
 
       <div class="card-info">
@@ -235,6 +413,7 @@ export default function (data: {
           <i aria-label="Drag" class="ri-draggable"></i>
         </div>
       </Show>
+<<<<<<< HEAD
 
       <Show when={!data.draggable && data.context?.src !== "queue"}>
         <button
@@ -260,6 +439,10 @@ export default function (data: {
         >
           <i class="ri-more-2-fill"></i>
         </button>
+=======
+      <Show when={!data.draggable && !data.inQueue}>
+        <i aria-label="More" class="ri-more-2-fill"></i>
+>>>>>>> upstream/main
       </Show>
     </a>
   );
