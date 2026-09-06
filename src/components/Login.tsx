@@ -1,8 +1,8 @@
-import { createSignal, onMount, Show } from "solid-js";
 import { setConfig } from "@utils";
 import { setStore, t } from "@stores";
+import { createSignal, onMount, Show } from "solid-js";
 
-export default function() {
+export default function Login() {
   const [email, setEmail] = createSignal("");
   const [pw, setPw] = createSignal("");
   const [loading, setLoading] = createSignal(false);
@@ -14,17 +14,11 @@ export default function() {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    if (loading()) return;
-    if (!email() || !pw()) return;
-
     setLoading(true);
-    setStore("snackbar", t("login_verifying"));
 
-    fetch("/hash", {
+    fetch("/syncHash", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email(), password: pw() }),
     })
       .then(async (res) => {
@@ -35,7 +29,6 @@ export default function() {
         return res.text();
       })
       .then((hash) => {
-        setConfig("dbsync", hash);
         setStore("snackbar", t("login_syncing"));
 
         import("@modules/cloudSync").then(({ runSync }) => {
@@ -43,9 +36,15 @@ export default function() {
             .then((result) => {
               setStore("snackbar", result.message);
               if (result.success) {
+                setConfig("dbsync", hash);
                 dialogRef.close();
                 dialogRef.remove();
+              } else {
+                setConfig("dbsync", "");
               }
+            })
+            .catch(() => {
+              setConfig("dbsync", "");
             })
             .finally(() => {
               setLoading(false);
