@@ -6,26 +6,26 @@ import { getCollection, metaUpdater, saveCollection } from "@utils";
 const Sortable = lazy(() => import("solid-sortablejs"));
 
 export default function Results(_: {
-  draggable: boolean,
-  items?: TrackItem[],
+  draggable: boolean;
+  items?: TrackItem[];
   mark?: {
-    mode: Accessor<boolean>,
-    set: (id: string) => void,
-    get: (id: string) => boolean
-  }
+    mode: Accessor<boolean>;
+    set: (id: string) => void;
+    get: (id: string) => boolean;
+  };
 }) {
-
-  const items = () => _.items || (listStore.list as TrackItem[]);
+  const items = () =>
+    _.items !== undefined ? _.items : (listStore.list as TrackItem[]);
 
   const handleReorder = (newList: TrackItem[]) => {
-    setListStore('list', newList as YTItem[]);
+    setListStore("list", newList as YTItem[]);
 
-    if (listStore.type === 'collection') {
+    if (listStore.type === "collection") {
       const collectionId = listStore.id;
       const fullCollection = getCollection(collectionId);
 
       // Since we load from the beginning, newList represents the start of the collection
-      const newIds = newList.map(i => i.id);
+      const newIds = newList.map((i) => i.id);
       const remainingIds = fullCollection.slice(newList.length);
 
       saveCollection(collectionId, [...newIds, ...remainingIds]);
@@ -39,21 +39,27 @@ export default function Results(_: {
       fallback={<i class="ri-loader-3-line loading-spinner"></i>}
     >
       <div class="listContainer">
-        <Show when={_.draggable} fallback={
-          <For each={items()}>{
-            (item) =>
-              <StreamItem
-                {...{
-                  ...item,
-                  type: 'video',
-                  context: { id: listStore.name || listStore.id, src: listStore.type as Context }
-                }}
-                draggable={false}
-                mark={_.mark}
-              />
+        <Show
+          when={_.draggable}
+          fallback={
+            <For each={items()}>
+              {(item) => (
+                <StreamItem
+                  {...{
+                    ...item,
+                    type: "video",
+                    context: {
+                      id: listStore.name || listStore.id,
+                      src: listStore.type as Context,
+                    },
+                  }}
+                  draggable={false}
+                  mark={_.mark}
+                />
+              )}
+            </For>
           }
-          </For>
-        }>
+        >
           <Sortable
             items={items()}
             setItems={handleReorder}
@@ -61,22 +67,27 @@ export default function Results(_: {
             animation={150}
             handle=".ri-draggable"
           >
-            {(item: TrackItem) =>
+            {(item: TrackItem) => (
               <StreamItem
                 {...{
                   ...item,
-                  type: 'video',
-                  context: { id: listStore.name || listStore.id, src: listStore.type as Context }
+                  type: "video",
+                  context: {
+                    id: listStore.name || listStore.id,
+                    src: listStore.type as Context,
+                  },
                 }}
                 draggable={true}
                 mark={_.mark}
               />
-            }
+            )}
           </Sortable>
         </Show>
-        <Show when={listStore.type === 'playlists' && listStore.hasContinuation}>
+        <Show
+          when={listStore.type === "playlists" && listStore.hasContinuation}
+        >
           <button class="loadAllBtn" onclick={loadAll}>
-            {t('list_load_all')}
+            {t("list_load_all")}
           </button>
         </Show>
       </div>

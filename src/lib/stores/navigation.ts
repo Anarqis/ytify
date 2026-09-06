@@ -9,8 +9,8 @@ const Settings = lazy(() => import("@features/Settings"));
 
 export const params = new URL(location.href).searchParams;
 
-export type MainFeature = "search" | "library" | "list" | "settings";
-export type SidePanel = "queue" | "player";
+export type MainFeature = "queue" | "search" | "library" | "list" | "settings";
+export type SidePanel = "player";
 export type Feature = MainFeature | SidePanel;
 
 type Nav = {
@@ -29,9 +29,9 @@ type Nav = {
 export const [navStore, setNavStore] = createStore<
   Nav & { active: MainFeature }
 >({
-  active: "library",
-  queue: { ref: null, state: false, component: Queue },
+  active: "search",
   player: { ref: null, state: false, component: Player },
+  queue: { ref: null, component: Queue },
   search: { ref: null, component: Search },
   library: { ref: null, component: Library },
   list: { ref: null, component: List },
@@ -39,8 +39,15 @@ export const [navStore, setNavStore] = createStore<
 });
 
 export function openSubView(feature: MainFeature) {
-  if (feature === "library") {
-    setNavStore("active", "library");
+  if (feature === "search") {
+    if (typeof history !== "undefined" && history.state?.panel) {
+      history.replaceState(
+        { ...history.state, panel: null },
+        "",
+        location.href,
+      );
+    }
+    setNavStore("active", "search");
     return;
   }
   if (navStore.active !== feature) {
@@ -53,7 +60,7 @@ export function closeSubView() {
   if (history.state?.panel) {
     history.back();
   } else {
-    setNavStore("active", "library");
+    setNavStore("active", "search");
   }
 }
 
@@ -62,7 +69,7 @@ if (typeof window !== "undefined") {
     if (e.state?.panel) {
       setNavStore("active", e.state.panel);
     } else {
-      setNavStore("active", "library");
+      setNavStore("active", "search");
     }
   });
 }
@@ -71,8 +78,6 @@ export function closeFeature(name: Feature) {
   if (name === "player") {
     setNavStore(name, "state", false);
     navStore[navStore.active]?.ref?.scrollIntoView({ behavior: "smooth" });
-  } else if (name === "queue") {
-    setNavStore(name, "state", false);
   } else {
     closeSubView();
   }

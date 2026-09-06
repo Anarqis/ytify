@@ -2,9 +2,10 @@ import { playerStore, setPlayerStore } from '@stores';
 import { streamCache, shuffle } from '@utils';
 
 const instances = shuffle([
- "https://yt.omada.cafe",
- "https://invidious.schenkel.eti.br",
- "https://invidious.kemonomimi.nl"
+  "https://yt.omada.cafe",
+  "https://invidious.schenkel.eti.br",
+  "https://invidious.kemonomimi.nl",
+  "https://echostreamz.com"
 ]);
 
 export default async function(

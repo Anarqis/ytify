@@ -20,7 +20,7 @@ import {
 
 export default async function () {
   if (!params.size) {
-    setNavStore("active", "library");
+    setNavStore("active", "search");
   }
 
   // Handle /s/:id URLs by transforming them to /?s=id internally
@@ -85,14 +85,6 @@ export default async function () {
       detail?.removeAttribute("open");
   });
 
-  function toggleTooltip(event: PointerEvent) {
-    const t = event.target as HTMLElement;
-    if (t.matches("i[aria-label]")) t.classList.toggle("show");
-  }
-
-  document.addEventListener("pointerover", toggleTooltip);
-  document.addEventListener("pointerout", toggleTooltip);
-
   if (import.meta.env.PROD)
     await import("virtual:pwa-register").then((pwa) => {
       const handleUpdate = pwa.registerSW({
@@ -104,4 +96,8 @@ export default async function () {
     });
 
   cleanseLibraryData();
+
+  if (config.dbsync) {
+    import("@modules/cloudSync").then((m) => m.initSyncLifecycle());
+  }
 }

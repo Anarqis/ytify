@@ -1,9 +1,15 @@
-import { For, Show, lazy, onMount, createSignal } from "solid-js";
+import { For, Show, lazy, onMount, createMemo } from "solid-js";
 import "./Library.css";
 import Collections from "./Collections";
 
-import { getLibraryAlbums, config, getMeta, getLists } from "@utils";
-import { t, setNavStore, store, openSubView } from "@stores";
+import {
+  getLibraryAlbums,
+  config,
+  getMeta,
+  getLists,
+  librarySections,
+} from "@utils";
+import { t, setNavStore, store } from "@stores";
 import ListItem from "@components/ListItem";
 import Dropdown from "./Dropdown";
 
@@ -11,8 +17,6 @@ const Gallery = lazy(() => import("./Gallery"));
 const SubFeed = lazy(() => import("./SubFeed"));
 
 export default function () {
-  const [showGallery, setShowGallery] = createSignal(false);
-  const [showSubFeed, setShowSubFeed] = createSignal(false);
   let libraryRef!: HTMLElement;
   let syncBtn!: HTMLElement;
 
@@ -24,13 +28,15 @@ export default function () {
       libraryRef.scrollIntoView();
     });
 
-  function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else if (document.exitFullscreen) {
-      document.exitFullscreen();
-    }
-  }
+  const libraryAlbums = createMemo(() => {
+    store.libraryUpdated;
+    return getLibraryAlbums();
+  });
+
+  const libraryPlaylists = createMemo(() => {
+    store.libraryUpdated;
+    return getLists("playlists");
+  });
 
   return (
     <section class="library" ref={libraryRef}>
@@ -64,66 +70,27 @@ export default function () {
               }}
             ></i>
           </Show>
-
-          <i
-            aria-label={t("nav_search")}
-            class="ri-search-2-line"
-            onclick={() => openSubView("search")}
-          ></i>
-
-          <Show when={!matchMedia("(display-mode: standalone)").matches}>
-            <i
-              class="ri-fullscreen-line"
-              aria-label={t("settings_fullscreen")}
-              onclick={toggleFullScreen}
-            ></i>
-          </Show>
-
-          <i
-            class="ri-settings-line"
-            aria-label={t("nav_settings")}
-            onclick={() => openSubView("settings")}
-          ></i>
-
-          <i
-            aria-label={t("hub_subfeed")}
-            class={`ri-tv-${showSubFeed() ? "fill" : "line"}`}
-            onclick={() => {
-              setShowSubFeed(!showSubFeed());
-              if (showSubFeed()) setShowGallery(false);
-            }}
-          ></i>
-
-          <i
-            aria-label={t("hub_gallery")}
-            class="ri-user-heart-line"
-            classList={{ "ri-user-heart-fill": showGallery() }}
-            onclick={() => {
-              setShowGallery(!showGallery());
-              if (showGallery()) setShowSubFeed(false);
-            }}
-          ></i>
         </div>
 
         <Dropdown />
       </header>
 
-      <Show when={showGallery()}>
+      <Show when={librarySections().gallery}>
         <Gallery />
       </Show>
-      <Show when={showSubFeed()}>
+      <Show when={librarySections().subfeed}>
         <SubFeed />
       </Show>
       <Collections />
       <br />
-      <Show when={getLibraryAlbums().length > 0}>
+      <Show when={libraryAlbums().length > 0}>
         <article>
           <p>
             <i class="ri-album-fill"></i>&nbsp;
             {t("library_albums")}
           </p>
           <div>
-            <For each={getLibraryAlbums()}>
+            <For each={libraryAlbums()}>
               {(item) => (
                 <ListItem
                   name={item.name}
@@ -139,14 +106,14 @@ export default function () {
       </Show>
       <br />
 
-      <Show when={getLists("playlists").length > 0}>
+      <Show when={libraryPlaylists().length > 0}>
         <article>
           <p>
             <i class="ri-youtube-fill"></i>&nbsp;
             {t("library_playlists")}
           </p>
           <div>
-            <For each={getLists("playlists")}>
+            <For each={libraryPlaylists()}>
               {(item) => (
                 <ListItem
                   name={item.name}

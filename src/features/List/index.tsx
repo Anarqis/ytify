@@ -7,6 +7,7 @@ import {
   setNavStore,
   t,
   setQueueStore,
+  openSubView,
 } from "@stores";
 import {
   fetchCollection,
@@ -16,6 +17,7 @@ import {
   generateImageUrl,
   setDrawer,
   getCollectionItems,
+  sortCollection,
 } from "@utils";
 import Dropdown from "./Dropdown";
 import Results from "./Results";
@@ -38,21 +40,37 @@ export default function () {
   const [showSortable, setShowSortable] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal("");
 
+  const getSourceItems = () => {
+    let source =
+      listStore.type === "collection" && !listStore.isShared
+        ? getCollectionItems(listStore.id)
+        : (listStore.list as TrackItem[]);
+
+    if (
+      listStore.type === "collection" &&
+      !listStore.reservedCollections.includes(listStore.id) &&
+      (config.sortBy !== "modified" || config.sortOrder === "asc")
+    ) {
+      source = sortCollection(source, config.sortBy, config.sortOrder);
+    }
+
+    return source || [];
+  };
+
   const filteredItems = () => {
-    const query = searchQuery()
+    const rawQuery = searchQuery().trim();
+    const source = getSourceItems();
+    if (!rawQuery) return source;
+
+    const query = rawQuery
       .normalize("NFD")
       .replace(/\p{Diacritic}/gu, "")
       .toLowerCase();
-    if (!query) return listStore.list;
-
-    const source =
-      listStore.type === "collection" && !listStore.isShared
-        ? getCollectionItems(listStore.id)
-        : listStore.list;
 
     return source.filter((item) => {
-      const normalize = (str: string) =>
-        str
+      if (!item) return false;
+      const normalize = (str?: string) =>
+        (str || "")
           .normalize("NFD")
           .replace(/\p{Diacritic}/gu, "")
           .toLowerCase();
@@ -84,55 +102,66 @@ export default function () {
     resetList();
   });
 
-  const MarkBar = () => (
-    <div class="markBar">
-      <i
-        aria-label={t("list_mark_all")}
-        class={"ri-checkbox-multiple-fill"}
-        onclick={() => {
-          if (markList().length === listStore.list.length) setMarkList([]);
-          else setMarkList(listStore.list.map((v) => v.id));
-        }}
-      ></i>
-      <Show when={markList().length}>
-        <Show when={listStore.type === "collection"}>
+  const MarkBar = () => {
+    const currentList = () =>
+      searchQuery().trim() ? filteredItems() : getSourceItems();
+
+    return (
+      <div class="markBar">
+        <i
+          aria-label={t("list_mark_all")}
+          class={"ri-checkbox-multiple-fill"}
+          onclick={() => {
+            const items = currentList();
+            if (markList().length === items.length && items.length > 0)
+              setMarkList([]);
+            else setMarkList(items.map((v) => v.id));
+          }}
+        ></i>
+
+        <Show when={listStore.type === "collection" && !listStore.isShared}>
           <i
             aria-label={t("list_remove_marked")}
             class="ri-indeterminate-circle-line"
             onclick={() => {
-              removeFromCollection(listStore.name, markList());
+              removeFromCollection(listStore.id, markList());
+              setMarkList([]);
             }}
           ></i>
         </Show>
-        <i
-          aria-label={t("list_enqueue_marked")}
-          class="ri-list-check-2"
-          onclick={() => {
-            const listToEnqueue = markList()
-              .map((id) => listStore.list.find((v) => v.id === id))
-              .filter(Boolean) as TrackItem[];
 
-            if (listToEnqueue.length) {
-              setQueueStore("history", []);
-              addToQueue(listToEnqueue);
-              setNavStore("queue", "state", false);
-              setNavStore("queue", "state", true);
-            }
-          }}
-        ></i>
+        <Show when={markList().length}>
+          <span>{markList().length}</span>
+          <i
+            aria-label={t("list_enqueue_marked")}
+            class="ri-list-check-2"
+            onclick={() => {
+              const allSource = getSourceItems();
+              const listToEnqueue = markList()
+                .map((id) => allSource.find((v) => v.id === id))
+                .filter(Boolean) as TrackItem[];
 
-        <i aria-label={t("collection_selector_add_to")}>
-          <CollectionSelector
-            data={
-              markList()
-                .map((id) => listStore.list.find((v) => v.id === id))
-                .filter(Boolean) as TrackItem[]
-            }
-          />
-        </i>
-      </Show>
-    </div>
-  );
+              if (listToEnqueue.length) {
+                setQueueStore("history", []);
+                addToQueue(listToEnqueue);
+                openSubView("queue");
+              }
+            }}
+          ></i>
+
+          <i aria-label={t("collection_selector_add_to")}>
+            <CollectionSelector
+              data={
+                markList()
+                  .map((id) => getSourceItems().find((v) => v.id === id))
+                  .filter(Boolean) as TrackItem[]
+              }
+            />
+          </i>
+        </Show>
+      </div>
+    );
+  };
 
   return (
     <section ref={listSection} id="listSection">
@@ -142,14 +171,14 @@ export default function () {
             when={!isSearching()}
             fallback={
               <input
+                ref={(el) => setTimeout(() => el?.focus(), 10)}
                 autofocus
                 type="text"
                 class="listSearchInput"
                 placeholder="Search within List"
+                value={searchQuery()}
                 oninput={(e) => {
-                  setSearchQuery(
-                    (e.target as HTMLInputElement).value.toLowerCase(),
-                  );
+                  setSearchQuery(e.currentTarget.value);
                 }}
                 onkeydown={(e) => {
                   if (e.key === "Escape") {
@@ -177,16 +206,18 @@ export default function () {
             aria-checked={markMode()}
             class={markMode() ? "ri-checkbox-fill" : "ri-checkbox-line"}
             onclick={() => {
-              setMarkMode(!markMode());
-              if (!markMode()) setMarkList([]);
+              const next = !markMode();
+              setMarkMode(next);
+              if (!next) setMarkList([]);
             }}
           ></i>
           <i
             aria-label={t("nav_search")}
-            class="ri-search-2-line"
+            class={isSearching() ? "ri-close-line" : "ri-search-2-line"}
             onclick={() => {
-              setIsSearching(!isSearching());
-              if (!isSearching()) setSearchQuery("");
+              const next = !isSearching();
+              setIsSearching(next);
+              if (!next) setSearchQuery("");
             }}
           ></i>
         </div>
@@ -275,7 +306,8 @@ export default function () {
         draggable={
           showSortable() &&
           localSortBy() === "modified" &&
-          !listStore.reservedCollections.includes(listStore.id)
+          !listStore.reservedCollections.includes(listStore.id) &&
+          !isSearching()
         }
         mark={{
           mode: markMode,
