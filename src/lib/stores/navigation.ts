@@ -1,67 +1,127 @@
-import { JSX, lazy } from "solid-js";
+import { Component, lazy } from "solid-js";
 import { createStore } from "solid-js/store";
-const Home = lazy(() => import('../../features/Home'));
-const List = lazy(() => import('../../features/List'));
-const Queue = lazy(() => import('../../features/Queue'));
-const Player = lazy(() => import('../../features/Player'));
-const Settings = lazy(() => import('../../features/Settings'));
-const Updater = lazy(() => import('../../features/Updater'));
+const Search = lazy(() => import("@features/Search"));
+const Library = lazy(() => import("@features/Library"));
+const List = lazy(() => import("@features/List"));
+const Queue = lazy(() => import("@features/Queue"));
+const Player = lazy(() => import("@features/Player"));
+const Settings = lazy(() => import("@features/Settings"));
 
-export const params = (new URL(location.href)).searchParams;
+export const params = new URL(location.href).searchParams;
 
+export type MainFeature = "queue" | "search" | "library" | "list" | "settings";
+export type SidePanel = "player";
+export type Feature = MainFeature | SidePanel;
 
-type Nav = { [key in Features]: {
-  ref: HTMLElement | null,
-  state: boolean,
-  component: () => JSX.Element
-} }
+type Nav = {
+  [key in MainFeature]: {
+    ref: HTMLElement | null;
+    component: Component<any>;
+  };
+} & {
+  [key in SidePanel]: {
+    ref: HTMLElement | null;
+    state: boolean;
+    component: Component<any>;
+  };
+};
 
-export const [navStore, setNavStore] = createStore<Nav>({
-  queue: { ref: null, state: false, component: Queue },
+export const [navStore, setNavStore] = createStore<
+  Nav & { active: MainFeature }
+>({
+  active: "search",
   player: { ref: null, state: false, component: Player },
-  home: { ref: null, state: false, component: Home },
-  list: { ref: null, state: false, component: List },
-  settings: { ref: null, state: false, component: Settings },
-  updater: { ref: null, state: false, component: Updater }
+  queue: { ref: null, component: Queue },
+  search: { ref: null, component: Search },
+  library: { ref: null, component: Library },
+  list: { ref: null, component: List },
+  settings: { ref: null, component: Settings },
 });
 
-
-
-export function closeFeature(name: Features) {
-  const keys = Object.keys(navStore);
-  const removedIndex = keys.indexOf(name);
-
-  const active = Object.entries(navStore)
-    .filter(f => f[1].state && f[0] !== name)
-    .sort((a, b) => {
-      const aa = Math.abs(keys.indexOf(a[0]) - removedIndex);
-      const bb = Math.abs(keys.indexOf(b[0]) - removedIndex);
-      return aa - bb;
-    });
-
-  const closestRef = active[0]?.[1]?.ref;
-
-  if (removedIndex >= 3)
-    closestRef?.scrollIntoView();
-
-
-  setNavStore(name, { ref: null, state: false });
+export function openSubView(feature: MainFeature) {
+  if (feature === "search") {
+    if (typeof history !== "undefined" && history.state?.panel) {
+      history.replaceState(
+        { ...history.state, panel: null },
+        "",
+        location.href,
+      );
+    }
+    setNavStore("active", "search");
+    return;
+  }
+  if (navStore.active !== feature) {
+    history.pushState({ panel: feature }, "", location.href);
+    setNavStore("active", feature);
+  }
 }
 
-type Params = 'q' | 's' | 'f' | 'v' | 'collection' | 'playlist' | 'channel' | 'si' | 'supermix' | 't';
+export function closeSubView() {
+  if (history.state?.panel) {
+    history.back();
+  } else {
+    setNavStore("active", "search");
+  }
+}
 
-export function updateParam(
-  param: Params,
-  value?: string
-) {
-  if (value)
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", (e) => {
+    if (e.state?.panel) {
+      setNavStore("active", e.state.panel);
+    } else {
+      setNavStore("active", "search");
+    }
+  });
+}
+
+export function closeFeature(name: Feature) {
+  if (name === "player") {
+    setNavStore(name, "state", false);
+    navStore[navStore.active]?.ref?.scrollIntoView({ behavior: "smooth" });
+  } else {
+    closeSubView();
+  }
+}
+
+type Params =
+  | "q"
+  | "s"
+  | "f"
+  | "collection"
+  | "playlist"
+  | "channel"
+  | "artist"
+  | "album"
+  | "si"
+  | "t";
+
+const listParams: Params[] = [
+  "playlist",
+  "channel",
+  "artist",
+  "album",
+  "collection",
+  "si",
+];
+
+export function updateParam(param: Params, value?: string) {
+  if (value) {
+    if (listParams.includes(param)) {
+      listParams.forEach((p) => params.delete(p));
+      params.delete("q");
+      params.delete("f");
+    }
+    if (param === "q" || param === "f") {
+      listParams.forEach((p) => params.delete(p));
+    }
     params.set(param, value);
-  else
-    params.delete(param);
+  } else params.delete(param);
 
   const str = params.toString();
 
-  history.replaceState({}, '', location.origin + location.pathname + (str && '?') + params.toString());
+  history.replaceState(
+    history.state || {},
+    "",
+    location.origin + location.pathname + (str && "?") + params.toString(),
+  );
 }
-
-
