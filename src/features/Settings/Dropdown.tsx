@@ -1,4 +1,4 @@
-import { t } from '@lib/stores';
+import { t } from '@stores';
 
 export default function Dropdown() {
 
@@ -12,7 +12,8 @@ export default function Dropdown() {
 
   function exportSettings() {
     const link = document.createElement('a');
-    link.download = 'ytify_settings.json';
+    const date = new Date().toISOString().split('T')[0];
+    link.download = `ytify_settings_${date}.json`;
     link.href = `data:text/json;charset=utf-8,${encodeURIComponent(localStorage.getItem('config') || '{}')}`;
     link.click();
   }
