@@ -1,18 +1,14 @@
-import { setStore, store } from './app';
-import { config, drawer, setDrawer } from '@lib/utils';
-import { updateParam } from './navigation';
 import { createStore } from 'solid-js/store';
-import fetchSearchSuggestions from '@lib/modules/fetchSearchSuggestions';
-import fetchYoutubeSearchResults from '@lib/modules/fetchYoutubeSearchResults';
-import fetchYTMusicSearchResults from '@lib/modules/fetchYTMusicSearchResults';
+import { config, drawer, setDrawer } from '@utils';
+import { updateParam, setStore, store } from '@stores';
 
 const createInitialState = () => ({
   query: '',
-  results: [] as (YTStreamItem | YTListItem)[],
+  results: [] as (YTItem | YTListItem)[],
   isLoading: false,
   page: 1,
   suggestions: {
-    data: drawer.recentSearches,
+    data: [] as string[],
     index: -1,
     controller: new AbortController()
   },
@@ -20,6 +16,10 @@ const createInitialState = () => ({
 });
 
 export const [searchStore, setSearchStore] = createStore(createInitialState());
+
+let suggestionTimeout: ReturnType<typeof setTimeout> | undefined;
+let lastQuery = '';
+const DEBOUNCE_TIME = 400;
 
 export function resetSearch() {
   searchStore.observer.disconnect();
@@ -29,101 +29,80 @@ export function resetSearch() {
 }
 
 export function getSearchSuggestions(text: string) {
+  searchStore.suggestions.controller.abort();
+  clearTimeout(suggestionTimeout);
+
   if (text.length < 3) {
     setSearchStore('suggestions', 'data', []);
+    lastQuery = '';
     return;
   }
 
-  setSearchStore('page', 1);
-  setSearchStore('suggestions', 'index', -1);
+  if (text === lastQuery) return;
 
-  searchStore.suggestions.controller.abort();
-  const newController = new AbortController();
-  setSearchStore('suggestions', 'controller', newController);
+  suggestionTimeout = setTimeout(() => {
+    lastQuery = text;
+    setSearchStore('page', 1);
+    setSearchStore('suggestions', 'index', -1);
 
-  fetchSearchSuggestions(text, newController.signal)
-    .then(data => {
-      setSearchStore('suggestions', 'data', data);
-    })
-    .catch(e => {
-      if (e.name === 'AbortError') return;
-      setStore('snackbar', e.message);
-      setSearchStore('suggestions', 'data', []);
-    });
+    const newController = new AbortController();
+    setSearchStore('suggestions', 'controller', newController);
+
+    const isMusic = ['song', 'artist', 'album'].includes(config.searchFilter);
+    const url = `/search-suggestions?q=${encodeURIComponent(text)}&music=${isMusic}`;
+
+    fetch(url, { signal: newController.signal })
+      .then(res => res.json() as Promise<string[]>)
+      .then(data => {
+        setSearchStore('suggestions', 'data', data);
+      })
+      .catch(e => {
+        if (e.name === 'AbortError') return;
+        setStore('snackbar', e.message);
+        setSearchStore('suggestions', 'data', []);
+      });
+  }, DEBOUNCE_TIME);
 }
 
-export async function getSearchResults() {
-  const { query, page, observer } = searchStore;
+export async function getSearchResults(force = false) {
+  const { query, results, isLoading } = searchStore;
   const { searchFilter } = config;
 
-  if (!query) return;
+  if (!query || (isLoading && !force)) return;
+  if (!force && results.length > 0) return;
 
   setSearchStore('isLoading', true);
   searchStore.suggestions.controller.abort();
   setSearchStore('suggestions', 'data', []);
-  observer.disconnect();
+  searchStore.observer.disconnect();
 
   const lc = query.trim().toLowerCase();
 
+<<<<<<< HEAD
   if (config.saveRecentSearches && lc) {
     const recentSearches = [...drawer.recentSearches];
     while (recentSearches.length > 4)
       recentSearches.shift();
+=======
+  if (config.saveRecentSearches && lc && !lc.includes(' ') && !lc.includes(',')) {
+    if (recentSearches.includes(lc)) {
+      recentSearches.splice(recentSearches.indexOf(lc), 1);
+    }
+    recentSearches.push(lc);
+>>>>>>> upstream/main
 
-    if (!recentSearches.includes(lc))
-      recentSearches.push(lc);
+    while (recentSearches.length > 7)
+      recentSearches.shift();
 
     setDrawer('recentSearches', recentSearches);
   }
 
-  const isMusic = searchFilter.startsWith('music_');
+  const url = `${store.api}/search?q=${encodeURIComponent(query)}&f=${searchFilter}`;
 
-  const getData = (): Promise<(YTStreamItem | YTListItem)[]> => {
-    if (isMusic)
-      return fetchYTMusicSearchResults(query);
-    else {
-      let invidiousIndex = store.invidious.length - 1;
-      const fetcher = (): Promise<(YTStreamItem | YTListItem)[]> =>
-        fetchYoutubeSearchResults(
-          store.invidious[invidiousIndex],
-          query,
-          searchFilter,
-          page
-        ).catch(e => {
-          if (invidiousIndex > 0) {
-            invidiousIndex--;
-            return fetcher();
-          } else throw e;
-
-        });
-      return fetcher();
-    }
-  }
-
-  getData()
+  fetch(url)
+    .then(res => res.json() as Promise<(YTItem | YTListItem)[]>)
     .then(data => {
       setSearchStore('results', data);
-      if (!isMusic) {
-        setSearchStore('page', page + 1);
-        const callback = async () => {
-          const moreData = await fetchYoutubeSearchResults(
-            store.invidious[store.invidious.length - 1],
-            query,
-            searchFilter,
-            searchStore.page
-          );
-          if (moreData) {
-            const existingIds = new Set(searchStore.results.map(item => 'id' in item ? item.id : item.url));
-            const uniqueMoreData = moreData.filter(item => !existingIds.has('id' in item ? item.id : item.url));
-            setSearchStore('results', [...searchStore.results, ...uniqueMoreData]);
-            setSearchStore('page', searchStore.page + 1);
-          }
-        };
-        setSearchStore('observer', setObserver(callback));
-        if (data.length < 5) {
-          callback();
-        }
-      }
     })
     .catch(e => {
       setStore('snackbar', e.message);
@@ -135,21 +114,4 @@ export async function getSearchResults() {
 
   updateParam('q', query);
   updateParam('f', searchFilter === 'all' ? '' : searchFilter);
-}
-
-function setObserver(callback: () => Promise<void>): IntersectionObserver {
-  const ref = document.querySelector(`.searchlist a:nth-last-child(5)`) as HTMLElement;
-  if (!ref) return { disconnect() { } } as IntersectionObserver;
-  const obs = new IntersectionObserver(async (entries, observer) => {
-    for (const e of entries) {
-      if (e.isIntersecting) {
-        observer.disconnect();
-        await callback();
-        setSearchStore('observer', setObserver(callback));
-      }
-    }
-  });
-  obs.observe(ref);
-
-  return obs;
 }
