@@ -1,13 +1,16 @@
-import { convertSStoHHMMSS } from "./helpers";
-import { playerStore, setPlayerStore, setStore, store } from "@lib/stores";
-import { config } from "./config";
-import getStreamData from "../modules/getStreamData";
+import { playerStore, setPlayerStore, setStore, store } from "@stores";
+import {
+  config,
+  convertSStoHHMMSS,
+  streamCache,
+  getCachedOpusUrl,
+  getTracksMap,
+} from "@utils";
+import { isQueuePrefetchActive } from "../modules/queuePrefetch";
 
 let playerAbortController: AbortController;
-export async function player(id?: string, isRetry = false) {
-
-  if (playerAbortController)
-    playerAbortController.abort();
+export async function player(id?: string) {
+  if (playerAbortController) playerAbortController.abort();
 
   playerAbortController = new AbortController();
 
@@ -15,55 +18,87 @@ export async function player(id?: string, isRetry = false) {
 
   const enforceVideo = !playerStore.isMusic && playerStore.isWatching;
 
-  if (!enforceVideo)
+  if (!enforceVideo) {
+    try {
+      const cachedUrl = await getCachedOpusUrl(id);
+      if (cachedUrl) {
+        const tracks = getTracksMap();
+        const track = tracks[id] || playerStore.stream;
+        if (track?.title) {
+          const setMetadata = await import("@modules/setMetadata").then(
+            (mod) => mod.default,
+          );
+          await setMetadata({
+            id,
+            title: track.title,
+            author: track.author,
+            duration: track.duration,
+            authorId: track.authorId,
+          });
+        }
+
+        delete playerStore.audio.dataset.retried;
+        playerStore.audio.src = cachedUrl;
+        setPlayerStore({
+          playbackState: "playing",
+          status: "",
+        });
+        playerStore.audio.play().catch(() => {});
+        return;
+      }
+    } catch (e) {
+      console.warn(
+        "[OPFS] Failed to play from cache, falling back to network",
+        e,
+      );
+    }
+
     setPlayerStore({
-      playbackState: 'loading',
-      status: 'Loading Audio...'
+      playbackState: "loading",
+      status: "Loading Audio...",
     });
+  }
 
+  if (!store.useSaavn) setStore("useSaavn", true);
+  else if (playerStore.stream.author?.endsWith("Topic") && !streamCache.get(id))
+    return import("../modules/jioSaavn").then((mod) => mod.default());
 
-  if (!store.useSaavn)
-    setStore('useSaavn', true);
-  else if (playerStore.stream.author?.endsWith('Topic'))
-    return import('../modules/jioSaavn').then(mod => mod.default());
+  const getStreamData = await import("@modules/getStreamData").then(
+    (mod) => mod.default,
+  );
+  const data = await getStreamData(id, playerAbortController.signal);
 
-  if (!store.invidious.length)
-    setStore('snackbar', 'No Instances are Available');
-
-  const data = await getStreamData(id, false, playerAbortController.signal);
-
-  if (!isRetry)
-    setStore('index', 0);
-
-  if (data && 'adaptiveFormats' in data)
+  if (data && "adaptiveFormats" in data)
     setPlayerStore({
       data,
-      fullDuration: data.lengthSeconds
+      fullDuration: data.lengthSeconds,
     });
   else {
-    const errorData = data as Record<'error' | 'message', string>;
+    const errorData = data as Record<"error" | "message", string>;
     setPlayerStore({
-      playbackState: 'none',
-      status: errorData.message || errorData.error || 'Loading Audio Failed'
+      playbackState: "none",
+      status: errorData.message || errorData.error || "Loading Audio Failed",
     });
-    setStore('snackbar', playerStore.status);
+    setStore("snackbar", playerStore.status);
     return;
   }
 
   const invidiousData = data as Invidious;
 
-  await import('../modules/setMetadata')
-    .then(mod => mod.default({
+  await import("../modules/setMetadata").then((mod) =>
+    mod.default({
       id,
       title: invidiousData.title,
       author: invidiousData.author,
       duration: convertSStoHHMMSS(invidiousData.lengthSeconds),
-      authorId: invidiousData.authorId
-    }));
+      authorId: invidiousData.authorId,
+    }),
+  );
 
-  import('../modules/setAudioStreams')
-    .then(mod => mod.default(
+  import("../modules/setAudioStreams").then((mod) =>
+    mod.default(
       invidiousData.adaptiveFormats
+<<<<<<< HEAD
         .filter(f => f.type.startsWith('audio'))
         .sort((a, b) => (parseInt(a.bitrate) - parseInt(b.bitrate)))
     ))
@@ -76,18 +111,24 @@ export async function player(id?: string, isRetry = false) {
       import('../modules/enqueueRelatedStreams')
         .then(mod => mod.default(invidiousData.recommendedVideos));
 
+=======
+        .filter((f) => f.type.startsWith("audio"))
+        .sort((a, b) => parseInt(a.bitrate) - parseInt(b.bitrate)),
+    ),
+  );
+>>>>>>> upstream/main
 
+  if (config.similarContent && !enforceVideo && !isQueuePrefetchActive())
+    import("../modules/enqueueRelatedStreams").then((mod) =>
+      mod.default(invidiousData.recommendedVideos),
+    );
 
   // related streams imported into discovery after 1min 40seconds, short streams are naturally filtered out
 
   if (config.discover)
-    import('../modules/setDiscoveries')
-      .then(mod => {
-        setTimeout(() => {
-          mod.default(id, invidiousData.recommendedVideos);
-        }, 1e5);
-      });
-
+    import("../modules/setDiscoveries").then((mod) => {
+      setTimeout(() => {
+        mod.default(id, invidiousData.recommendedVideos);
+      }, 1e5);
+    });
 }
-
-
