@@ -1,36 +1,91 @@
+import { createSignal } from "solid-js";
+
+export type PanelRatio = "1:1" | "2:3" | "3:4" | "1:2" | "2:5";
+
+export interface LibrarySections {
+  subfeed: boolean;
+  gallery: boolean;
+  featured: boolean;
+  listenLater: boolean;
+  history: boolean;
+  favorites: boolean;
+  liked: boolean;
+  cached: boolean;
+  discovery: boolean;
+}
+
+export type LibrarySectionKey = keyof LibrarySections;
+
+export const defaultLibrarySections: LibrarySections = {
+  subfeed: true,
+  gallery: true,
+  featured: true,
+  listenLater: true,
+  history: true,
+  favorites: true,
+  liked: true,
+  cached: true,
+  discovery: true,
+};
+
 export let config = {
-  language: '',
-  shareAction: 'play' as 'play' | 'watch' | 'download',
-  quality: 'medium' as 'low' | 'medium' | 'high' | 'worst',
+  language: "",
+  shareAction: "play" as "play" | "watch" | "download",
+  quality: "medium" as "low" | "medium" | "high" | "worst",
   stableVolume: false,
-  watchMode: '',
+  watchMode: "",
   discover: true,
   history: true,
   searchBarLinkCapture: true,
   searchSuggestions: true,
   saveRecentSearches: true,
   loadImage: true,
-  landscapeSections: '2',
-  roundness: '0.4rem',
-  theme: 'auto' as 'auto' | 'light' | 'dark',
+  panelRatio: "2:5" as PanelRatio,
+  roundness: "0.4rem",
+  theme: "auto" as "auto" | "light" | "dark",
   persistentShuffle: false,
-  manualOrdering: true,
-  durationFilter: '',
-  allowDuplicates: false,
+  durationFilter: "",
   similarContent: false,
   contextualFill: false,
-  queuePrefetch: false,
   authorGrouping: false,
-  home: '',
-  searchFilter: 'all',
-  volume: '100',
-  dbsync: '',
-  sortOrder: 'modified' as 'modified' | 'name' | 'artist' | 'duration'
-}
+  searchFilter: "all",
+  volume: "100",
+  dbsync: "",
+  sortBy: "modified" as "modified" | "name" | "artist" | "duration",
+  sortOrder: "desc" as "asc" | "desc",
+  librarySections: { ...defaultLibrarySections },
+};
 
 type AppConfig = typeof config;
 
+const savedStore = localStorage.getItem("config");
+if (savedStore) {
+  try {
+    const parsed = JSON.parse(savedStore) as Record<string, unknown>;
+    (Object.keys(config) as (keyof AppConfig)[]).forEach((key) => {
+      if (parsed[key] !== undefined) {
+        if (
+          key === "librarySections" &&
+          typeof parsed[key] === "object" &&
+          parsed[key] !== null
+        ) {
+          const sections = parsed[key] as Record<string, unknown>;
+          delete sections.frequentlyPlayed;
+          config.librarySections = {
+            ...defaultLibrarySections,
+            ...(sections as Partial<LibrarySections>),
+          };
+        } else {
+          (config as Record<keyof AppConfig, unknown>)[key] = parsed[key];
+        }
+      }
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
 
+<<<<<<< HEAD
 import { safeJsonParse } from "@lib/utils/safe";
 
 const savedStore = localStorage.getItem('config');
@@ -42,33 +97,93 @@ if (savedStore) {
 
 export function setConfig<K extends
   keyof AppConfig>(key: K, val: AppConfig[K]) {
+=======
+export function setConfig<K extends keyof AppConfig>(
+  key: K,
+  val: AppConfig[K],
+) {
+>>>>>>> upstream/main
   config[key] = val;
   const str = JSON.stringify(config);
-  localStorage.setItem('config', str);
+  localStorage.setItem("config", str);
+}
+
+export const [librarySections, setLibrarySectionsSignal] =
+  createSignal<LibrarySections>({
+    ...config.librarySections,
+  });
+
+export function setLibrarySection(key: LibrarySectionKey, val: boolean) {
+  const updated = {
+    ...librarySections(),
+    [key]: val,
+  };
+  setLibrarySectionsSignal(updated);
+  setConfig("librarySections", updated);
 }
 
 /* Transitory local saves thats not supposed to be transferrable */
 
 export let drawer = {
   recentSearches: [] as string[],
-  lastUsedQueueAction: '',
-  discovery: [] as (CollectionItem & { frequency: number })[],
-  userArtists: [] as Channel[],
-  relatedPlaylists: [] as Playlist[],
-  relatedArtists: [] as Channel[],
-  subfeed: [] as CollectionItem[],
+  discovery: [] as (YTItem & { frequency: number })[],
+  lastMainFeature: "search" as "search" | "library",
+  lastList: null as { id: string; type: string; shared?: boolean } | null,
+};
+const savedDrawer = localStorage.getItem("drawer");
+if (savedDrawer) {
+  try {
+    const parsed = JSON.parse(savedDrawer) as Record<string, unknown>;
+    let hadLegacyPlays = false;
+    if ("libraryPlays" in parsed) {
+      delete parsed.libraryPlays;
+      hadLegacyPlays = true;
+    }
+    (Object.keys(drawer) as (keyof AppDrawer)[]).forEach((key) => {
+      if (parsed[key] !== undefined) {
+        if (
+          key === "lastMainFeature" &&
+          parsed[key] !== "search" &&
+          parsed[key] !== "library"
+        )
+          return;
+        (drawer as Record<keyof AppDrawer, unknown>)[key] = parsed[key];
+      }
+    });
+    if (hadLegacyPlays) {
+      localStorage.setItem("drawer", JSON.stringify(drawer));
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
+<<<<<<< HEAD
 const savedDrawer = localStorage.getItem('drawer');
 if (savedDrawer) {
   const parsed = safeJsonParse(savedDrawer, null);
   if (parsed) drawer = parsed;
 }
+=======
+>>>>>>> upstream/main
 
 type AppDrawer = typeof drawer;
 
-export function setDrawer<K extends
-  keyof AppDrawer>(key: K, val: AppDrawer[K]) {
+export function setDrawer<K extends keyof AppDrawer>(
+  key: K,
+  val: AppDrawer[K],
+) {
   drawer[key] = val;
   const str = JSON.stringify(drawer);
-  localStorage.setItem('drawer', str);
+  localStorage.setItem("drawer", str);
+}
+
+export function applyPanelRatio(ratio: PanelRatio | string) {
+  const [left, right] = (ratio || "2:5").split(":");
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.style.setProperty("--panelRatioLeft", left || "2");
+    document.documentElement.style.setProperty(
+      "--panelRatioRight",
+      right || "5",
+    );
+  }
 }
