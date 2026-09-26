@@ -1,7 +1,7 @@
 import { createSignal, For, createEffect, Show } from "solid-js";
-import { config, generateImageUrl, getApi, proxyHandler, setConfig } from "@lib/utils";
-import { playerStore, playNext, setPlayerStore, setStore, store, t } from "@lib/stores";
-import { queueStore } from "@lib/stores/queue";
+import { config, generateImageUrl, proxyHandler, setConfig } from "@utils";
+import { playerStore, playNext, setPlayerStore, t, queueStore } from "@stores";
+
 
 export default function() {
 
@@ -57,7 +57,7 @@ export default function() {
         .map(f => ([f.resolution || f.quality, f.url])),
       captions: data.captions.map(c => ({
         ...c,
-        url: getApi() + c.url
+        url: playerStore.proxy + c.url
       }))
     });
 
@@ -65,6 +65,7 @@ export default function() {
       video.src = '';
       video.pause();
     }
+    delete video.dataset.retried;
     if (savedQ)
       video.src = proxyHandler(selector.value, true);
 
@@ -126,19 +127,13 @@ export default function() {
         onratechange={() => {
           playerStore.audio.playbackRate = video.playbackRate;
         }}
-        onerror={() => {
-          if (video.src.endsWith('&fallback')) return;
-          const origin = new URL(video.src).origin;
-          const { invidious, index } = store;
-
-
-          if (index < invidious.length) {
-
-            const proxy = invidious[index];
-            video.src = video.src.replace(origin, proxy);
-            playerStore.audio.src = playerStore.audio.src.replace(origin, proxy);
-
-            setStore('index', index + 1);
+        onerror={async () => {
+          const oldOrigin = new URL(video.src).origin;
+          const { default: audioErrorHandler } = await import("@modules/audioErrorHandler");
+          audioErrorHandler(video);
+          if (video.dataset.retried) {
+            const { proxy, audio } = playerStore;
+            audio.src = audio.src.replace(oldOrigin, proxy);
           }
         }}
 
