@@ -1,6 +1,7 @@
 **/node_modules
 .idea
 dist
+<<<<<<< HEAD
 .env
 .env.local
 .env.*.local
@@ -23,3 +24,8 @@ backend/data/
 
 # Claude settings
 .claude/settings.local.json
+=======
+package-lock.json
+bun.lock
+dist/
+>>>>>>> upstream/main
