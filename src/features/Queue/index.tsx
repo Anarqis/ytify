@@ -1,35 +1,49 @@
-import { onMount, Show, lazy } from 'solid-js';
-import './Queue.css';
-import { queueStore, setNavStore, t, setQueueStore, totalQueueDuration } from "@lib/stores";
+import { onMount, Show } from "solid-js";
+import "./Queue.css";
+import {
+  queueStore,
+  setNavStore,
+  t,
+  setQueueStore,
+  totalQueueDuration,
+} from "@stores";
 import List from "./List";
-import Dropdown from './Dropdown';
-import { config } from '@lib/utils';
+import Dropdown from "./Dropdown";
+import HeaderNav from "@components/HeaderNav";
 
-const Standby = lazy(() => import('./Standby'));
-
-export default function() {
-
+export default function () {
   let queueSection!: HTMLDivElement;
 
   onMount(() => {
-    setNavStore('queue', 'ref', queueSection);
+    setNavStore("queue", "ref", queueSection);
     queueSection.scrollIntoView();
   });
 
   return (
-    <section
-      class="queueSection"
-      ref={queueSection}
-    >
-
-      <header>
-        <p>{queueStore.list.length === 0 ? t('nav_queue') : totalQueueDuration(queueStore.list)}</p>
+    <section class="queueSection" ref={queueSection}>
+      <header class="sticky-bar">
+        <HeaderNav
+          title={
+            <p>
+              {queueStore.list.length === 0
+                ? t("nav_queue")
+                : totalQueueDuration(queueStore.list)}
+            </p>
+          }
+          extra={
+            <Show when={queueStore.list.length > 0}>
+              <span class="header-nav-badge queue-duration-badge">
+                {totalQueueDuration(queueStore.list)}
+              </span>
+            </Show>
+          }
+        />
         <div class="right-group">
           <i
             class="ri-shuffle-line"
-            aria-label={t('queue_shuffle')}
+            aria-label={t("queue_shuffle")}
             onclick={() => {
-              setQueueStore('list', (list) => {
+              setQueueStore("list", (list) => {
                 const shuffled = [...list];
                 for (let i = shuffled.length - 1; i > 0; i--) {
                   const j = Math.floor(Math.random() * (i + 1));
@@ -45,28 +59,22 @@ export default function() {
             classList={{
               on: queueStore.removeMode,
             }}
-            aria-label={t('queue_remove_mode')}
+            aria-label={t("queue_remove_mode")}
             onclick={() => {
-              setQueueStore('removeMode', !queueStore.removeMode);
+              setQueueStore("removeMode", !queueStore.removeMode);
             }}
           ></i>
         </div>
 
-        <Dropdown
-        />
+        <Dropdown />
       </header>
 
       <Show
         when={!queueStore.isLoading}
-        fallback={<i class="ri-loader-3-line"></i>}
+        fallback={<i class="ri-loader-3-line loading-spinner"></i>}
       >
         <List />
-        <Show when={
-          queueStore.list.length === 0 &&
-          config.contextualFill && config.similarContent}>
-          <Standby />
-        </Show>
       </Show>
-    </section >
+    </section>
   );
 }
