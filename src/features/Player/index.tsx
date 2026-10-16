@@ -1,48 +1,70 @@
-import { createEffect, createSignal, lazy, onCleanup, onMount, Show } from "solid-js"
-import './Player.css'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
+import "./Player.css";
 import { MediaDetails } from "@components/MediaPartials";
-import { config, cssVar } from "@lib/utils";
-import { closeFeature, playerStore, setNavStore, setStore, t, updateParam } from "@lib/stores";
+import {
+  config,
+  cssVar,
+  playerBackground,
+  type PlayerBackground,
+} from "@utils";
+import { playerStore, setNavStore, setStore, t, updateParam } from "@stores";
 
-const MediaArtwork = lazy(() => import('../../components/MediaPartials/MediaArtwork'));
-const Lyrics = lazy(() => import('./Lyrics'));
-const Video = lazy(() => import('./Video'));
-const Controls = lazy(() => import('./Controls'));
+const MediaArtwork = lazy(
+  () => import("../../components/MediaPartials/MediaArtwork"),
+);
+const Lyrics = lazy(() => import("./Lyrics"));
+const Video = lazy(() => import("./Video"));
+const Controls = lazy(() => import("./Controls"));
 
-export default function() {
+export default function () {
   let playerSection!: HTMLDivElement;
-
-
   const [showLyrics, setShowLyrics] = createSignal(false);
 
   onMount(() => {
+<<<<<<< HEAD
     setNavStore('player', 'ref', playerSection);
     // playerSection.scrollIntoView(); 
+=======
+    setNavStore("player", "ref", playerSection);
+>>>>>>> upstream/main
   });
 
   createEffect(() => {
-    if (playerStore.stream.id)
-      updateParam('s', playerStore.stream.id);
+    if (playerStore.stream.id) updateParam("s", playerStore.stream.id);
   });
 
   onCleanup(() => {
-    updateParam('s');
+    updateParam("s");
   });
 
+  // Background layers are a music-only feature, videos always stay bare.
+  const background = createMemo<PlayerBackground>(() =>
+    playerStore.isMusic ? playerBackground() : "none",
+  );
+  const showBg = () => background() !== "none";
 
   createEffect(() => {
-    const { immersive, mediaArtwork } = playerStore;
-    if (immersive)
-      cssVar('--player-bg', `url(${mediaArtwork})`);
+    const current = background();
+    // Leaves --player-bg untouched while idle so nothing is painted per track.
+    if (current === "none") return;
+    cssVar("--player-bg", `url(${playerStore.mediaArtwork})`);
+    if (!current.endsWith("-motion")) cssVar("--player-bp", "0 0");
   });
-
 
   function getContext() {
     const { id } = playerStore.context;
-
     return id;
   }
 
+<<<<<<< HEAD
 
   /* Gesture Support */
   let touchStartY = 0;
@@ -104,29 +126,40 @@ export default function() {
 
       <Show when={playerStore.immersive} >
         <div class="bg-pane" />
+=======
+  return (
+    <section
+      id="playerSection"
+      class={`bg-${background()}`}
+      ref={playerSection}
+    >
+      <Show when={showBg()}>
+>>>>>>> upstream/main
         <div class="bg-image" />
+        <div class="bg-pane" />
       </Show>
 
       <header class="topShelf">
-        <p>{t('player_from', getContext())}</p>
+        <p>
+          <Show when={playerStore.context.src}>
+            <Show
+              when={playerStore.context.src === "queue"}
+              fallback={t("player_from", getContext())}
+            >
+              {getContext()}
+            </Show>
+          </Show>
+        </p>
 
-        <div class="right-group">
-
-          <i
-            aria-label={t('close')}
-            onclick={() => { closeFeature('player') }}
-            class="ri-close-large-line"></i>
-
-        </div>
         <i
-          aria-label={t('player_more')}
+          aria-label={t("player_more")}
           class="ri-more-2-fill"
           id="moreBtn"
-          onclick={() => setStore('actionsMenu', playerStore.stream)}
+          onclick={() => setStore("actionsMenu", playerStore.stream)}
         ></i>
       </header>
-      <article>
 
+      <article>
         <Show when={playerStore.isWatching && !playerStore.isMusic}>
           <Video />
         </Show>
@@ -135,18 +168,22 @@ export default function() {
           <Lyrics onClose={() => setShowLyrics(false)} />
         </Show>
 
-        <Show when={(!playerStore.isWatching || playerStore.isMusic) && config.loadImage && !showLyrics()}>
+        <Show
+          when={
+            (!playerStore.isWatching || playerStore.isMusic) &&
+            config.loadImage &&
+            !showLyrics()
+          }
+        >
           <MediaArtwork />
         </Show>
-
 
         <MediaDetails />
 
         <Show when={!playerStore.isWatching || playerStore.isMusic}>
           <Controls showLyrics={showLyrics} setShowLyrics={setShowLyrics} />
         </Show>
-
       </article>
     </section>
-  )
+  );
 }
