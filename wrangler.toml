@@ -1,0 +1,30 @@
+name = "api"
+main = "src/backend/worker.ts"
+compatibility_date = "2026-03-05"
+compatibility_flags = [ "nodejs_compat" ]
+
+[observability]
+enabled = true
+
+# [triggers]
+# crons = ["0 0 * * SUN"] # Disabled: rely on external dataset / eliminate 100k SQLite writes
+
+[[durable_objects.bindings]]
+name = "USER_SYNC_DO"
+class_name = "UserSyncDO"
+
+[[durable_objects.bindings]]
+name = "CATALOG_DO"
+class_name = "CatalogDO"
+
+[[durable_objects.bindings]]
+name = "STREAM_GATE_DO"
+class_name = "StreamGateDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserSyncDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["CatalogDO", "StreamGateDO"]
