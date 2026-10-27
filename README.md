@@ -33,7 +33,6 @@ The journey began with a frustration. As a regular user of NewPipe in 2021, I re
 
 ## Usage 👆
 - Official Instance - https://ytify.pp.ua
-- Testing Instance - https://dev--ytify.netlify.app
 - Full Usage Guide is available at [wiki>usage](https://github.com/n-ce/ytify/wiki/usage)
 - Join our Community [@ytifytg](https://t.me/ytifytg)
 
@@ -45,14 +44,10 @@ The journey began with a frustration. As a regular user of NewPipe in 2021, I re
 > This project is actively seeking contributors, [Read More Here](https://github.com/n-ce/ytify/blob/main/CONTRIBUTING.md).
 
 ## Donations
-- **[Donate Anonymously via Trocador](https://trocador.app/anonpay?ticker_to=xmr&network_to=Mainnet&address=87BtajHDsoGD5acvkKgi2j385ZKUbJkH4QBoCQtFGgTARKWRAVEo28RLs1S3P3w6AgMkjcNLmSST7CLuxKFuzXciJiNBQqH&ref=sqKNYGZbRl&direct=True)**
 
-- **UPI:** `animesh.5383@waicici`
+- **FIAT / UPI** `animesh.5383@waicici`
 
-- **XMR:** `87BtajHDsoGD5acvkKgi2j385ZKUbJkH4QBoCQtFGgTARKWRAVEo28RLs1S3P3w6AgMkjcNLmSST7CLuxKFuzXciJiNBQqH`
-- **LTC:** `ltc1qvrvu50lz9e4cgjc9lf59td53xzu08zref2rxkf`
-- **BTC:** `bc1qtaxauv2mzc52ulmenlmejetluxnz5ly4ucg97k`
-- **ETH:** `0x8c0028c8C4EC2ee508C9A9DdDf15Fe00b4960ED3`
+- **Monero / XMR** `87BtajHDsoGD5acvkKgi2j385ZKUbJkH4QBoCQtFGgTARKWRAVEo28RLs1S3P3w6AgMkjcNLmSST7CLuxKFuzXciJiNBQqH`
 
 ## Development 🔧
 1. Prerequisites : Fundamental understanding of SolidJS. 
@@ -84,8 +79,9 @@ npm run dev -- --open
 ytify is being translated into multiple languages using [Weblate](https://hosted.weblate.org/projects/ytify/web).
  
 ## Acknowledgements 🙏
+- [Shashwat](https://github.com/Shashwat-CODING) - Maintainer / Developer of Streaming services
+- [InnerTube API](https://github.com/LuanRT/YouTube.js) - Powers the ytify backend.
 - [Solid.js](https://www.solidjs.com/) - Performant UI Library
-- [Invidious](https://invidious.io) - YouTube Data API & Progressive Streaming Proxy
 - [LRCLIB](https://lrclib.net) - Synced Lyrics Provider
 - [Netlify](https://www.netlify.com) - Hosting, PR Previews, Edge Functions
 - [Vite](https://vitejs.dev) - Development Server, Code Bundling, Project Scaffolding
