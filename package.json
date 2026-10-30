@@ -1,5 +1,6 @@
 {
   "name": "ytify",
+<<<<<<< HEAD
   "version": "8.2.1-ml4.0",
   "type": "module",
   "scripts": {
@@ -11,12 +12,26 @@
     "ship": "node scripts/ship.js",
     "sync": "node scripts/sync.js",
     "typecheck": "tsc --noEmit"
+=======
+  "version": "8.5-Ultra",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "icons": "bun scripts/generate-icons.ts",
+    "backend": "bun scripts/test-backend.ts",
+    "test": "bun test scripts/",
+    "lint": "bun lint",
+    "lint:fix": "bun lint --fix",
+    "build": "bun run icons && tsc && vite build",
+    "preview": "vite preview",
+    "knip": "knip"
+>>>>>>> upstream/main
   },
   "dependencies": {
-    "solid-js": "1.9.10",
-    "sortablejs": "^1.15.6"
+    "solid-js": "^1.9.17"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "@netlify/blobs": "^10.5.0",
     "@netlify/edge-functions": "^3.0.3",
     "@netlify/functions": "^5.1.2",
@@ -41,6 +56,26 @@
     "workbox-range-requests": "^7.4.0",
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0"
+=======
+    "@cloudflare/workers-types": "^5.20261028.1",
+    "@netlify/blobs": "^11.1.7",
+    "@netlify/edge-functions": "^4.0.3",
+    "@netlify/functions": "^6.0.3",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.5",
+    "@types/subset-font": "^2.3.0",
+    "autoprefixer": "^10.6.2",
+    "knip": "^6.43.0",
+    "open-props": "1.7.23",
+    "postcss-jit-props": "1.0.16",
+    "remixicon": "^4.9.1",
+    "subset-font": "^2.9.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "vite-plugin-solid": "^2.11.14",
+    "youtubei.js": "18.3.0"
+>>>>>>> upstream/main
   },
   "browserslist": [
     "defaults"
