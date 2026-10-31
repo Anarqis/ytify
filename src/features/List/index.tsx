@@ -1,202 +1,447 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
-import './List.css';
-import Sortable, { type SortableEvent } from 'sortablejs';
-import { addToQueue, listStore, resetList, setListStore, setNavStore, t } from '@lib/stores';
-import { fetchCollection, metaUpdater, removeFromCollection, saveCollection } from '@lib/utils/library';
-import { setConfig, config } from '@lib/utils/config';
-import { generateImageUrl, getThumbIdFromLink } from '@lib/utils';
-import Dropdown from './Dropdown';
-import Results from './Results';
-import CollectionSelector from '@components/ActionsMenu/CollectionSelector';
-import ListItem from '@components/ListItem'; // Added import
+import { createSignal, For, onMount, Show, onCleanup, createEffect } from "solid-js";
+import "./List.css";
+import {
+  addToQueue,
+  listStore,
+  setListStore,
+  resetList,
+  setNavStore,
+  t,
+  setQueueStore,
+  openSubView,
+  store,
+} from "@stores";
+import { generateImageUrl, sortCollection, normalizeText, stripTopic, type SortBy } from "@utils";
+import { librarySections, setConfig, config, setDrawer } from "@config";
+import { DISCOVERY_COLLECTION, fetchCollection, removeFromCollection, getCollectionItems } from "@modules/library";
+import Dropdown from "./Dropdown";
+import Results from "./Results";
+import CollectionSelector from "@components/ActionsMenu/CollectionSelector";
+import ListItem from "@components/ListItem";
+import HeaderNav from "@components/HeaderNav";
 
-type SortOrder = 'modified' | 'name' | 'artist' | 'duration';
+function ArtistRow(props: { artists: Channel[] }) {
+  return (
+    <div class="list-carousel">
+      <For each={props.artists}>
+        {(artist) => (
+          <ListItem
+            name={artist.name}
+            img={artist.img}
+            id={artist.id}
+            type="artist"
+          />
+        )}
+      </For>
+    </div>
+  );
+}
 
-export default function() {
+function AlbumRow(props: { albums: YTAlbumItem[] }) {
+  return (
+    <div class="list-carousel">
+      <For each={props.albums}>
+        {(album) => (
+          <ListItem
+            name={album.name}
+            year={album.year}
+            img={album.img}
+            author={album.author}
+            id={album.id}
+            type="album"
+          />
+        )}
+      </For>
+    </div>
+  );
+}
+
+export default function () {
   let listSection!: HTMLElement;
-  let sortableRef: Sortable | undefined;
 
   const [markMode, setMarkMode] = createSignal(false);
+  const [isSearching, setIsSearching] = createSignal(false);
   const [markList, setMarkList] = createSignal<string[]>([]);
-  const [showStreamsNumber, setShowStreamsNumber] = createSignal(false);
-  const [showSortMenu, setShowSortMenu] = createSignal(false);
-  const [localSortOrder, setLocalSortOrder] = createSignal<SortOrder>(config.sortOrder);
+  const [localSortBy, setLocalSortBy] = createSignal<SortBy>(config.sortBy);
+  const [localSortOrder, setLocalSortOrder] = createSignal<"asc" | "desc">(
+    config.sortOrder,
+  );
+  const [showSortable, setShowSortable] = createSignal(false);
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [favoriteArtists, setFavoriteArtists] = createSignal<Channel[]>([]);
+  let hasAttemptedArtistsFetch = false;
 
-  function initSortable() {
-    const listContainer = document.querySelector('.listContainer') as HTMLDivElement;
-    sortableRef = new Sortable(listContainer, {
-      handle: '.ri-draggable',
-      onUpdate(e: SortableEvent) {
-        if (e.oldIndex == null || e.newIndex == null) return;
-
-        setListStore('list', (currentList) => {
-          const newList = [...currentList];
-          const [removedItem] = newList.splice(e.oldIndex!, 1);
-          newList.splice(e.newIndex!, 0, removedItem);
-
-          const collection = listStore.id;
-          const dataArray = newList.map(item => item.id);
-          saveCollection(collection, dataArray);
-          metaUpdater(collection);
-
-          return [...newList];
-        });
-      }
-    });
-  }
-
-  onMount(() => {
-    setNavStore('list', 'ref', listSection);
-    listSection.scrollIntoView();
-    listSection.scrollTo(0, 0);
-    setNavStore('home', 'state', false);
-  });
   createEffect(() => {
-    if (localSortOrder() === 'modified' && showSortMenu()) {
-      initSortable();
+    if (listStore.id === "favorites" && listStore.type === "collection") {
+      // Gate artist shelf behind librarySections().featured
+      if (!librarySections().featured) {
+        setFavoriteArtists([]);
+        return;
+      }
+
+      const source = getSourceItems();
+      const artistCounts: Record<string, { count: number; name: string; img?: string }> = {};
+      source.forEach((track) => {
+        if (track && track.authorId) {
+          const prev = artistCounts[track.authorId];
+          artistCounts[track.authorId] = {
+            count: (prev?.count || 0) + 1,
+            name: stripTopic(track.author) || prev?.name || "",
+            img: (track as any).img || prev?.img || "",
+          };
+        }
+      });
+      const sorted = Object.entries(artistCounts).sort(([, a], [, b]) => b.count - a.count);
+      const artistIds = sorted.map(([id]) => id);
+
+      if (artistIds.length === 0) {
+        setFavoriteArtists([]);
+        return;
+      }
+
+      // Check session cache first
+      let cachedArtists: Channel[] = [];
+      try {
+        const stored = sessionStorage.getItem("featured_artists");
+        if (stored) cachedArtists = JSON.parse(stored);
+      } catch {}
+
+      if (cachedArtists.length > 0) {
+        setFavoriteArtists(cachedArtists);
+      } else {
+        setFavoriteArtists(
+          sorted.slice(0, 15).map(([id, info]) => ({
+            id,
+            name: info.name,
+            img: info.img || "",
+            type: "artist",
+          }))
+        );
+
+        if (hasAttemptedArtistsFetch) return;
+        hasAttemptedArtistsFetch = true;
+        fetch(`${store.api}/featured?artistIds=${encodeURIComponent(artistIds.slice(0, 5).join(","))}`)
+          .then((res) => res.json())
+          .then((data: any) => {
+            if (Array.isArray(data?.artists) && data.artists.length > 0) {
+              setFavoriteArtists(data.artists);
+              try {
+                sessionStorage.setItem("featured_artists", JSON.stringify(data.artists));
+              } catch {}
+            }
+          })
+          .catch(() => {});
+      }
     } else {
-      sortableRef?.destroy();
-      sortableRef = undefined;
+      setFavoriteArtists([]);
     }
   });
-  onCleanup(() => {
-    sortableRef?.destroy();
-    sortableRef = undefined;
+
+
+  const getSourceItems = () => {
+    let source =
+      listStore.type === "collection" && !listStore.isShared
+        ? getCollectionItems(listStore.id)
+        : (listStore.list as TrackItem[]);
+
+    if (
+      listStore.type === "collection" &&
+      !listStore.reservedCollections.includes(listStore.id) &&
+      (config.sortBy !== "modified" || config.sortOrder === "asc")
+    ) {
+      source = sortCollection(source, config.sortBy, config.sortOrder);
+    }
+
+    return source || [];
+  };
+
+  const filteredItems = () => {
+    const rawQuery = searchQuery().trim();
+    if (!rawQuery) return listStore.list as TrackItem[];
+
+    const source = getSourceItems();
+
+    const query = normalizeText(rawQuery);
+
+    return source.filter((item) => {
+      if (!item) return false;
+      return (
+        normalizeText(item.title).includes(query) ||
+        normalizeText(item.author).includes(query)
+      );
+    });
+  };
+
+  onMount(() => {
+    setNavStore("list", "ref", listSection);
+    listSection.scrollIntoView();
   });
 
+  onCleanup(() => {
+    if (listStore.id) {
+      setDrawer("lastList", {
+        id: listStore.id,
+        type:
+          listStore.type === "playlists"
+            ? "playlist"
+            : listStore.type === "channels"
+              ? "channel"
+              : listStore.type,
+        shared: listStore.isShared,
+      });
+    }
+    resetList();
+  });
 
-  const MarkBar = () => (
-    <div class="markBar">
-      <i
-        aria-label={t('list_mark_all')}
-        class={'ri-checkbox-multiple-fill'}
-        onclick={() => {
-          if (markList().length === listStore.list.length)
-            setMarkList([]);
-          else
-            setMarkList(listStore.list.map(v => v.id));
-        }}
-      ></i>
-      <Show when={markList().length}>
-        <Show when={listStore.type === 'collection'}>
-          <i
-            aria-label={t('list_remove_marked')}
-            class="ri-indeterminate-circle-line"
-            onclick={() => {
-              removeFromCollection(listStore.name, markList());
-            }}
-          ></i>
-        </Show>
+  const MarkBar = () => {
+    const currentList = () =>
+      searchQuery().trim() ? filteredItems() : getSourceItems();
+
+    // Every local collection is removable, including the reserved ones. Shared
+    // views and the virtual discovery feed have nothing to remove from.
+    const canRemoveFrom = () =>
+      listStore.type === "collection" &&
+      !listStore.isShared &&
+      listStore.id !== DISCOVERY_COLLECTION;
+
+    return (
+      <div class="markBar">
         <i
-          aria-label={t('list_enqueue_marked')}
-          class="ri-list-check-2"
+          aria-label={t("close")}
+          class="ri-close-large-line"
+          onclick={() => setMarkMode(false)}
+        ></i>
+        <i
+          aria-label={t("list_mark_all")}
+          class={"ri-checkbox-multiple-fill"}
           onclick={() => {
-
-            const listToEnqueue = markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as CollectionItem[];
-
-            if (listToEnqueue.length) {
-              addToQueue(listToEnqueue);
-              setNavStore('queue', 'state', true);
-            }
-
+            const items = currentList();
+            if (markList().length === items.length && items.length > 0)
+              setMarkList([]);
+            else setMarkList(items.map((v) => v.id));
           }}
         ></i>
 
-        <i aria-label={t('collection_selector_add_to')}>
-          <CollectionSelector data={markList().map(id => listStore.list.find(v => v.id === id)).filter(Boolean) as CollectionItem[]
-          } />
-        </i>
-      </Show>
-    </div >
+        <Show when={canRemoveFrom()}>
+          <i
+            aria-label={t("list_remove_marked")}
+            class="ri-indeterminate-circle-line"
+            onclick={() => {
+              removeFromCollection(listStore.id, markList());
+              setMarkList([]);
+            }}
+          ></i>
+        </Show>
+
+        <Show when={markList().length}>
+          <span>{markList().length}</span>
+          <i
+            aria-label={t("list_enqueue_marked")}
+            class="ri-list-check-2"
+            onclick={() => {
+              const allSource = getSourceItems();
+              const listToEnqueue = markList()
+                .map((id) => allSource.find((v) => v.id === id))
+                .filter(Boolean) as TrackItem[];
+
+              if (listToEnqueue.length) {
+                setQueueStore("history", []);
+                addToQueue(listToEnqueue);
+                openSubView("queue");
+              }
+            }}
+          ></i>
+
+          <i aria-label={t("collection_selector_add_to")}>
+            <CollectionSelector
+              data={
+                markList()
+                  .map((id) => getSourceItems().find((v) => v.id === id))
+                  .filter(Boolean) as TrackItem[]
+              }
+            />
+          </i>
+        </Show>
+      </div>
+    );
+  };
+
+  const SearchInput = () => (
+    <input
+      ref={(el) => setTimeout(() => el?.focus(), 10)}
+      autofocus
+      type="text"
+      class="listSearchInput"
+      placeholder="Search within List"
+      value={searchQuery()}
+      oninput={(e) => {
+        setSearchQuery(e.currentTarget.value);
+      }}
+      onkeydown={(e) => {
+        if (e.key === "Escape") {
+          setIsSearching(false);
+          setSearchQuery("");
+        }
+      }}
+    />
   );
 
   return (
     <section ref={listSection} id="listSection">
-      <header>
-        <Show
-          when={!markMode()}
-          fallback={<MarkBar />}>
-          <p
-            onclick={() => setShowStreamsNumber(!showStreamsNumber())}
-            id="listTitle"
-          >{
-              showStreamsNumber() ?
-                t('list_streams_count', listStore.length.toString()) :
-                listStore.name
-            }</p>
-        </Show>
-
+      <header class="sticky-bar">
+        <HeaderNav
+          title={
+            <Show when={!markMode()} fallback={<MarkBar />}>
+              <Show when={!isSearching()} fallback={<SearchInput />}>
+                <p
+                  onclick={() =>
+                    setListStore("showStreamsNumber", (prev) => !prev)
+                  }
+                  id="listTitle"
+                >
+                  {listStore.showStreamsNumber
+                    ? t(
+                        "list_streams_count",
+                        (
+                          listStore.length ||
+                          listStore.list?.length ||
+                          0
+                        ).toString(),
+                      )
+                    : listStore.name}
+                </p>
+              </Show>
+            </Show>
+          }
+          extra={
+            <Show when={!markMode()} fallback={<MarkBar />}>
+              <Show when={isSearching()}>
+                <SearchInput />
+              </Show>
+            </Show>
+          }
+        />
 
         <div class="right-group">
           <i
-            aria-label={t('list_mark_mode')}
+            aria-label={t("list_mark_mode")}
             aria-checked={markMode()}
-            class={markMode() ? 'ri-checkbox-fill' : 'ri-checkbox-line'}
+            class={markMode() ? "ri-checkbox-fill" : "ri-checkbox-line"}
             onclick={() => {
-              setMarkMode(!markMode());
-              if (!markMode())
-                setMarkList([]);
+              const next = !markMode();
+              setMarkMode(next);
+              if (!next) setMarkList([]);
             }}
           ></i>
           <i
-            aria-label={t('close')}
-            class="ri-close-large-line"
-            onclick={resetList}
+            aria-label={t("nav_search")}
+            class={isSearching() ? "ri-close-line" : "ri-search-2-line"}
+            onclick={() => {
+              const next = !isSearching();
+              setIsSearching(next);
+              if (!next) setSearchQuery("");
+            }}
           ></i>
         </div>
-        <Dropdown toggleSort={() => setShowSortMenu(!showSortMenu())} />
+        <Dropdown />
       </header>
 
-
-      <Show when={showSortMenu()}>
-        <span>
-          <label for="sortMenu">{t('list_sort_order')} :</label>
-          <select id="sortMenu" onchange={(e) => {
-            const newSortOrder = e.target.value as SortOrder;
-            setLocalSortOrder(newSortOrder);
-            setConfig('sortOrder', newSortOrder);
-            fetchCollection(listStore.id);
-          }} value={localSortOrder()}>
-            <option value="modified">{t('list_sort_modified')}</option>
-            <option value="name">{t('list_sort_name')}</option>
-            <option value="artist">{t('list_sort_artist')}</option>
-            <option value="duration">{t('list_sort_duration')}</option>
+      <Show
+        when={
+          listStore.type === "collection" &&
+          listStore.id &&
+          !listStore.reservedCollections.includes(listStore.id)
+        }
+      >
+        <span class="sortBar">
+          <label for="sortMenu">{t("list_sort_order")} :</label>
+          <select
+            id="sortMenu"
+            onchange={(e) => {
+              const newSortBy = e.target.value as SortBy;
+              setLocalSortBy(newSortBy);
+              setConfig("sortBy", newSortBy);
+              fetchCollection(listStore.id);
+            }}
+            value={localSortBy()}
+          >
+            <option value="modified">{t("list_sort_modified")}</option>
+            <option value="name">{t("list_sort_name")}</option>
+            <option value="artist">{t("list_sort_artist")}</option>
+            <option value="duration">{t("list_sort_duration")}</option>
           </select>
+          <Show
+            when={
+              localSortBy() === "modified" &&
+              !listStore.reservedCollections.includes(listStore.id)
+            }
+          >
+            <i
+              class="ri-draggable"
+              classList={{ active: showSortable() }}
+              onclick={() => setShowSortable(!showSortable())}
+            ></i>
+          </Show>
+          <i
+            class={localSortOrder() === "asc" ? "ri-sort-asc" : "ri-sort-desc"}
+            onclick={() => {
+              const newOrder = config.sortOrder === "asc" ? "desc" : "asc";
+              setConfig("sortOrder", newOrder);
+              setLocalSortOrder(newOrder);
+              fetchCollection(listStore.id);
+            }}
+          ></i>
         </span>
-
       </Show>
-      <Show when={listStore.name.startsWith('Artist') && listStore.artistAlbums?.length}>
-        <div class="albums-carousel">
-          <For each={listStore.artistAlbums}>
-            {(album) => (
-              <ListItem
-                title={album.title}
-                stats={album.subtitle}
-                thumbnail={generateImageUrl(getThumbIdFromLink(album.thumbnail), '')}
-                uploaderData={listStore.name.replace('Artist - ', '')}
-                url={`/playlist/${album.id}`}
-              />
-            )}
-          </For>
+
+      <Show
+        when={listStore.artistAlbums.length > 0 || listStore.artistEps.length > 3}
+      >
+        <div class="list-carousels">
+          <Show when={listStore.artistAlbums.length}>
+            <AlbumRow albums={listStore.artistAlbums} />
+          </Show>
+
+          <Show when={listStore.artistEps.length > 3}>
+            <AlbumRow albums={listStore.artistEps} />
+          </Show>
         </div>
       </Show>
 
-      <Show when={config.loadImage && listStore.name.startsWith('Album')}>
-        <img src={listStore.thumbnail.replace('w=360', 'w=720')} alt={listStore.name} class="list-thumbnail" />
+      <Show when={librarySections().featured && listStore.id === "favorites" && listStore.type === "collection" && favoriteArtists().length > 0}>
+        <div class="list-carousels">
+          <ArtistRow artists={favoriteArtists()} />
+        </div>
+      </Show>
+
+      <Show when={config.loadImage && listStore.id.startsWith("MPREb")}>
+        <img
+          src={generateImageUrl(listStore.img, "720")}
+          alt={listStore.name}
+          class="list-thumbnail"
+        />
       </Show>
 
       <Results
-        draggable={localSortOrder() === 'modified' && showSortMenu()}
+        items={filteredItems()}
+        draggable={
+          showSortable() &&
+          localSortBy() === "modified" &&
+          !listStore.reservedCollections.includes(listStore.id) &&
+          !isSearching()
+        }
         mark={{
           mode: markMode,
           set: (id: string) => {
             setMarkList((prev) =>
-              prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+              prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id],
             );
           },
-          get: (id: string) => markList().includes(id)
+          get: (id: string) => markList().includes(id),
         }}
       />
     </section>
-  )
+  );
 }
