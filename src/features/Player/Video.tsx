@@ -1,17 +1,18 @@
 import { createSignal, For, createEffect, Show } from "solid-js";
-import { config, generateImageUrl, getApi, proxyHandler, setConfig } from "@lib/utils";
-import { playerStore, playNext, setPlayerStore, setStore, store, t } from "@lib/stores";
-import { queueStore } from "@lib/stores/queue";
+import { generateImageUrl } from "@utils";
+import { config, setConfig } from "@config";
+import { proxyHandler } from "@modules/playback";
+import { playerStore, playNext, setPlayerStore, t, queueStore } from "@stores";
 
-export default function() {
-
+export default function () {
   const [data, setData] = createSignal({
     video: [] as string[][],
-    captions: [] as Invidious['captions']
+    captions: [] as Invidious["captions"],
   });
   let video!: HTMLVideoElement;
   let selector!: HTMLSelectElement;
 
+<<<<<<< HEAD
   // Cache AV1 support check (runs once, doesn't block stream setup)
   const [supportsAv1, setSupportsAv1] = createSignal(false);
   navigator.mediaCapabilities
@@ -28,15 +29,41 @@ export default function() {
     .then(result => setSupportsAv1(result.supported));
 
   const savedQ = config.watchMode || { worst: '144p', low: '240', medium: '360p', high: '720p' }[config.quality];
+=======
+  const savedQ =
+    config.watchMode ||
+    { worst: "144p", low: "240", medium: "360p", high: "720p" }[config.quality];
+>>>>>>> upstream/main
 
   createEffect(() => {
     if (!playerStore.stream.id) return;
     playerStore.audio.pause();
 
+<<<<<<< HEAD
+=======
+    const supportsAv1 = await navigator.mediaCapabilities
+      .decodingInfo({
+        type: "file",
+        video: {
+          contentType: 'video/mp4; codecs="av01.0.00M.08"',
+          bitrate: 1e7,
+          framerate: 22,
+          height: 720,
+          width: 1280,
+        },
+      })
+      .then((result) => result.supported);
+
+>>>>>>> upstream/main
     const data = playerStore.data as Invidious;
 
-    const hasAv1 = data.adaptiveFormats.filter(v => v.type?.includes('av01')).length === 4 ? data.adaptiveFormats.find(v => v.type?.includes('av01'))?.url : false;
-    const hasVp9 = data.adaptiveFormats.find(v => v.type?.includes('vp9'))?.url;
+    const hasAv1 =
+      data.adaptiveFormats.filter((v) => v.type?.includes("av01")).length === 4
+        ? data.adaptiveFormats.find((v) => v.type?.includes("av01"))?.url
+        : false;
+    const hasVp9 = data.adaptiveFormats.find((v) =>
+      v.type?.includes("vp9"),
+    )?.url;
 
     video.currentTime = playerStore.audio.currentTime;
 
@@ -47,49 +74,58 @@ export default function() {
 
     setData({
       video: data.adaptiveFormats
+<<<<<<< HEAD
         .filter(f => {
           if (!f.type.startsWith('video')) return false;
           if (f.type?.includes('av01') && useAv1) return true;
           if (f.type?.includes('vp9') && useVp9) return true;
           if (f.type?.includes('avc1') && useAvc) return true;
+=======
+        .filter((f) => {
+          if (!f.type.startsWith("video")) return false;
+          const av1 = hasAv1 && supportsAv1 && f.type?.includes("av01");
+          if (av1) return true;
+          const vp9 = !hasAv1 && f.type?.includes("vp9");
+          if (vp9) return true;
+          const avc = !hasVp9 && f.type?.includes("avc1");
+          if (avc) return true;
+>>>>>>> upstream/main
           return false;
         })
-        .map(f => ([f.resolution || f.quality, f.url])),
-      captions: data.captions.map(c => ({
+        .map((f) => [f.resolution || f.quality, f.url]),
+      captions: data.captions.map((c) => ({
         ...c,
-        url: getApi() + c.url
-      }))
+        url: playerStore.proxy + c.url,
+      })),
     });
 
     if (video.src) {
-      video.src = '';
+      video.src = "";
       video.pause();
     }
-    if (savedQ)
-      video.src = proxyHandler(selector.value, true);
-
+    delete video.dataset.retried;
+    if (savedQ) video.src = proxyHandler(selector.value, true);
   });
 
   function close() {
     video.pause();
-    setPlayerStore('status', '');
-    setPlayerStore('isWatching', false);
+    setPlayerStore("status", "");
+    setPlayerStore("isWatching", false);
   }
 
   return (
-    <div class='watcher'>
+    <div class="watcher">
       <video
         ref={video}
         controls
         crossorigin="anonymous"
-        poster={generateImageUrl(playerStore.stream.id, 'mq')}
+        poster={generateImageUrl(playerStore.stream.id, "mq")}
         onplay={() => {
           video.currentTime = playerStore.audio.currentTime;
           playerStore.audio.play();
         }}
         onpause={() => {
-          if (playerStore.isWatching)
-            playerStore.audio.pause();
+          if (playerStore.isWatching) playerStore.audio.pause();
           playerStore.audio.currentTime = video.currentTime;
         }}
         onended={() => {
@@ -99,8 +135,7 @@ export default function() {
           }
         }}
         onwaiting={() => {
-          if (!playerStore.audio.paused)
-            playerStore.audio.pause();
+          if (!playerStore.audio.paused) playerStore.audio.pause();
         }}
         ontimeupdate={() => {
           const diff = playerStore.audio.currentTime - video.currentTime;
@@ -110,15 +145,13 @@ export default function() {
           const rpr = Math.round(npr * 100) / 100;
           if (rpr !== playerStore.audio.playbackRate)
             playerStore.audio.playbackRate = rpr;
-
         }}
         onloadstart={() => {
           video.currentTime = playerStore.audio.currentTime;
           video.play();
         }}
         onplaying={() => {
-          if (playerStore.audio.paused)
-            playerStore.audio.play();
+          if (playerStore.audio.paused) playerStore.audio.play();
         }}
         onseeked={() => {
           playerStore.audio.currentTime = video.currentTime;
@@ -126,64 +159,56 @@ export default function() {
         onratechange={() => {
           playerStore.audio.playbackRate = video.playbackRate;
         }}
-        onerror={() => {
-          if (video.src.endsWith('&fallback')) return;
-          const origin = new URL(video.src).origin;
-          const { invidious, index } = store;
-
-
-          if (index < invidious.length) {
-
-            const proxy = invidious[index];
-            video.src = video.src.replace(origin, proxy);
-            playerStore.audio.src = playerStore.audio.src.replace(origin, proxy);
-
-            setStore('index', index + 1);
+        onerror={async () => {
+          const oldOrigin = new URL(video.src).origin;
+          const { default: audioErrorHandler } =
+            await import("@modules/audioErrorHandler");
+          audioErrorHandler(video);
+          if (video.dataset.retried) {
+            const { proxy, audio } = playerStore;
+            audio.src = audio.src.replace(oldOrigin, proxy);
           }
         }}
-
       >
         <Show when={data().captions.length}>
           <For each={data().captions}>
-            {(v) =>
+            {(v) => (
               <track
                 kind="subtitles"
                 src={v.url}
                 srclang={v.language_code}
                 label={v.label}
-              >
-              </track>
-            }
+              ></track>
+            )}
           </For>
         </Show>
-
       </video>
 
       <div>
-
-        <button onclick={close}>{t('close')}</button>
+        <button onclick={close}>{t("close")}</button>
 
         <select
           ref={selector}
-          onchange={_ => {
+          onchange={(_) => {
             video.src = proxyHandler(_.target.value, true);
             video.currentTime = playerStore.audio.currentTime;
             if (config.watchMode)
-              setConfig('watchMode', _.target.selectedOptions[0].textContent as string);
+              setConfig(
+                "watchMode",
+                _.target.selectedOptions[0].textContent as string,
+              );
           }}
         >
-
-          <option>{t('player_video_resolution')}</option>
+          <option>{t("player_video_resolution")}</option>
           <For each={data().video}>
-            {(f) =>
+            {(f) => (
               <option value={f[1]} selected={f[0] === savedQ}>
                 {f[0]}
               </option>
-            }
+            )}
           </For>
         </select>
       </div>
     </div>
-
   );
 }
