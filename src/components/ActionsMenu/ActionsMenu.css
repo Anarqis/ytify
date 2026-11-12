@@ -1,61 +1,93 @@
 #actionsMenu {
   padding: 0;
   width: 100%;
+  max-width: min(calc(100dvw - var(--gap) * 2), 24rem);
   margin: auto;
   border: var(--border);
   border-radius: var(--roundness);
   background: rgb(from var(--onBg) r g b / 0.8);
   backdrop-filter: blur(var(--size-px-2));
-  overflow: auto;
-  animation: var(--animation-slide-out-down) forwards;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
 
-  >.streamItem {
+  > .streamItem {
     margin: 0;
     pointer-events: none;
+    border: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+
+    .metadata {
+      min-width: 0;
+      overflow: hidden;
+
+      .title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .avu {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        p {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
 
     .ri-more-2-fill {
       display: none;
     }
   }
 
+  &.is-music > .streamItem span img {
+    width: var(--size-9);
+    height: var(--size-9);
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+
   &[open],
   &:open {
-    animation: var(--animation-slide-in-up) forwards;
+    animation: var(--animation-slide-in-up);
   }
 
-  &:open {
-    animation-duration: 0.3s;
-  }
-
-  @media(orientation:portrait) {
+  @media (orientation: portrait) {
     margin-bottom: var(--size-4);
+    max-width: min(calc(100dvw - var(--gap) * 2), 24rem);
   }
 
-  @media(orientation:landscape) {
+  @media (orientation: landscape) {
     margin-right: var(--size-fluid-2);
-    width: max-content;
-    animation: var(--animation-slide-out-right) forwards;
+    width: 100%;
+    max-width: min(24rem, calc(100dvw - var(--size-fluid-4)));
 
     &[open],
     &:open {
-      animation: var(--animation-slide-in-left) forwards;
+      animation: var(--animation-slide-in-left);
     }
-
   }
 
   &::backdrop {
     background-color: var(--blurMix);
-    margin: 0;
-    padding: 0;
     backdrop-filter: blur(var(--size-px-1));
   }
-
 
   ul {
     list-style: none;
     padding: 0;
-    width: auto;
+    margin: 0;
     display: grid;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   li {
@@ -69,9 +101,12 @@
     gap: var(--gap);
     padding: var(--size-1) var(--size-5);
     border-top: var(--border);
+    transition: background-color 0.2s;
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
 
     &:hover {
-      border: var(--border);
       background: var(--onBg2);
       color: var(--text2);
     }
@@ -79,38 +114,34 @@
     & i {
       font-size: var(--font-size-3);
       font-weight: var(--font-weight-3);
+      flex-shrink: 0;
     }
-
   }
 
   .clxnShelf {
     display: flex;
     cursor: initial;
     border: none;
+    width: 100%;
+    box-sizing: border-box;
 
     i {
       max-width: 34%;
       text-align: center;
       flex: 1;
-      font-style: inherit;
+      font-style: inherit !important;
+      display: flex;
+      justify-content: center;
+      align-items: center;
 
       select {
-        margin: 0;
-        padding: 0;
+        appearance: none;
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100%;
+        text-align: right;
+        color: inherit !important;
       }
     }
-
   }
-
-
-}
-
-#collectionSelector {
-  font-weight: inherit;
-  font-size: inherit;
-  margin: 0;
-  appearance: none;
-  background: transparent;
-  padding: 0;
-  color: inherit;
 }
