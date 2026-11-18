@@ -1,67 +1,39 @@
-import { For, onCleanup, onMount } from "solid-js";
-import { queueStore, setQueueStore } from "@lib/stores/queue";
+import { lazy } from "solid-js";
+import { queueStore, setQueueStore, groupQueueByAuthor } from "@stores";
+import { config } from "@config";
 import StreamItem from "@components/StreamItem";
-import type Sortable from 'sortablejs';
-import { type SortableEvent } from 'sortablejs';
-import { config } from "@lib/utils";
 
-export default function() {
+const SortableList = lazy(() => import("@modules/sortable"));
 
-  let queuelist!: HTMLDivElement;
-  let sortableRef!: Sortable;
-
-  onMount(() => {
-
-    if (queuelist && config.manualOrdering) {
-      import('sortablejs').then(module => {
-        const Sortable = module.default;
-        sortableRef = new Sortable(queuelist, {
-          handle: '.ri-draggable',
-          onUpdate(e: SortableEvent) {
-            if (e.oldIndex == null || e.newIndex == null) return;
-            setQueueStore("list", (list) => {
-              const newList = [...list];
-              const [removed] = newList.splice(e.oldIndex!, 1);
-              newList.splice(e.newIndex!, 0, removed);
-              return newList;
-            });
-          }
-        });
-      });
-    }
-  });
-
-  onCleanup(() => {
-    sortableRef?.destroy();
-  })
-
-
+export default function () {
   return (
-    <div
-      id="queuelist"
-      ref={queuelist}
-    >
-
-      <For each={queueStore.list}>
-        {(item, i) =>
-        (
+    <div id="queuelist">
+      <SortableList
+        items={queueStore.list}
+        setItems={(items: TrackItem[]) => {
+          let newList = items;
+          if (config.authorGrouping) newList = groupQueueByAuthor(newList);
+          setQueueStore("list", newList);
+        }}
+        idField="id"
+        animation={150}
+        handle=".ri-draggable"
+      >
+        {(item: TrackItem) => (
           <StreamItem
             id={item.id}
             title={item.title}
             author={item.author}
             duration={item.duration}
             authorId={item.authorId}
-            draggable={config.manualOrdering}
+            type="video"
+            draggable={true}
             removeMode={queueStore.removeMode}
-            context={{
-              src: 'queue',
-              id: i().toString()
-            }}
+            context={item.context}
+            inQueue={true}
           />
-        )
-        }
-
-      </For>
+        )}
+      </SortableList>
     </div>
-  )
+  );
 }
